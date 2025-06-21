@@ -192,19 +192,36 @@ export async function POST(req: Request) {
     const jobId = jobRecord.id
     console.log("✅ 작업 레코드 생성 완료:", { jobId })
 
-    // 백그라운드에서 이미지 생성 시작 (응답을 기다리지 않음)
-    processImageGeneration(jobId, photo, prompt, userId, job).catch((error) => {
-      console.error("❌ 백그라운드 이미지 생성 실패:", error)
-    })
+    try {
+      // 동기적으로 이미지 생성
+      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job)
 
-    // 즉시 응답 반환
-    console.log("🎉 작업 시작 - 즉시 응답 반환")
-    return NextResponse.json({
-      success: true,
-      jobId: jobId,
-      status: "processing",
-      message: "이미지 생성이 시작되었습니다. 잠시만 기다려주세요.",
-    })
+      // 이미지 생성 완료 후 응답 반환
+      console.log("🎉 이미지 생성 완료 - 응답 반환")
+      return NextResponse.json({
+        success: true,
+        jobId: jobId,
+        imageId: jobId,
+        imageUrl: imageUrl,
+        status: "completed",
+        message: "이미지 생성이 완료되었습니다.",
+      })
+    } catch (imageError: any) {
+      console.error("이미지 생성 실패:", imageError)
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: `이미지 생성에 실패했습니다: ${imageError.message || "알 수 없는 오류"}`,
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        },
+      )
+    }
 
   } catch (error: any) {
     console.error("이미지 생성 요청 처리 중 오류:", error)
@@ -224,14 +241,14 @@ export async function POST(req: Request) {
   }
 }
 
-// 백그라운드에서 실행되는 이미지 생성 함수
+// 이미지 생성 함수
 async function processImageGeneration(
   jobId: string, 
   photo: string, 
   prompt: string, 
   userId: string, 
   job: string
-) {
+): Promise<string> {
   const supabase = supabaseAdmin()
   
   try {
@@ -339,10 +356,11 @@ async function processImageGeneration(
       throw updateError
     }
 
-    console.log("🎉 백그라운드 이미지 생성 완료:", { jobId })
+    console.log("🎉 이미지 생성 완료:", { jobId })
+    return generatedImageUrl
 
   } catch (error: any) {
-    console.error("❌ 백그라운드 이미지 생성 실패:", error)
+    console.error("❌ 이미지 생성 실패:", error)
     
     // 오류 상태로 업데이트
     try {
@@ -364,6 +382,8 @@ async function processImageGeneration(
     } catch (refundError) {
       console.error("❌ 티켓 환불 실패:", refundError)
     }
+
+    throw error
   }
 }
 
@@ -507,26 +527,22 @@ VISUAL STYLE: Render the image ${styleDescription}. ${renderingInstructions}
 
 LAYOUT AND COMPOSITION: The final composition should be ${layoutDescription}. ${compositionInstructions}
 
-      IMPORTANT: Carefully analyze and preserve the person's unique facial characteristics including:
-      - Exact eye shape, double eyelids or monolids, eye size and distance
-      - Specific nose shape and size
-      - Distinctive lip shape and fullness
-      - Unique face shape (oval, round, square, heart-shaped, etc.)
-      - Skin tone and complexion
-      - Distinctive features like moles, freckles, or beauty marks
-      - Eyebrow shape and thickness
-      - Jawline definition and cheekbone structure
-      
-      While transforming this person, maintain their core identity and unique facial features. The result should be immediately recognizable as the same person, just in a different profession and age.
-      
-      Enhance their appearance by:
-      - Improving skin texture while maintaining natural skin tone
-      - Subtly enhancing facial symmetry while preserving unique asymmetries that define their look
-      - Slightly refining features while keeping their distinctive characteristics
-      - Adding a confident, professional expression appropriate for their career
-      - Creating the most flattering version of their actual features without changing their fundamental appearance
-      - Ensuring the lighting complements their facial structure
-      
-      The final image should look like the natural evolution of this exact person into their future career, not a generic or different person.
+TECHNICAL REQUIREMENTS:
+- Create a high-quality, detailed image with professional lighting and composition
+- Maintain Korean aesthetic sensibilities and cultural appropriateness
+- Keep the person's facial features recognizable while transforming them into the specified profession
+- Use proper lighting that enhances the professional appearance
+- Ensure the background and environment support the overall narrative
+- Apply appropriate depth of field and visual hierarchy
+- Use colors that complement the professional context and chosen style
+
+QUALITY STANDARDS:
+- Professional photography or illustration quality
+- Sharp details and clear textures
+- Appropriate contrast and color balance
+- Emotionally engaging and inspirational presentation
+- Culturally sensitive and respectful representation
+
+The final image should inspire viewers and accurately represent the chosen profession while maintaining the person's identity and dignity
     `
 }
