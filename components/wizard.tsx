@@ -155,9 +155,9 @@ export function Wizard() {
         const data = await response.json()
 
         if (data.success) {
-          setGeneratedImageId(data.jobId) // API에서 jobId를 반환하므로 수정
-          setGeneratedImage(null) // 백그라운드 처리이므로 초기에는 null
-          // setIsGenerating은 false로 설정하지 않음 - useImageStatus에서 상태 관리
+          setGeneratedImageId(data.imageId)
+          setGeneratedImage(data.imageUrl)
+          setIsGenerating(false)
           refreshTickets && refreshTickets()
         } else {
           setError(data.error || "이미지 생성에 실패했습니다.")

@@ -7,7 +7,6 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
-import { useImageStatus } from "@/hooks/use-image-status"
 
 interface ResultStepProps {
   image: string | null
@@ -32,25 +31,9 @@ export function ResultStep({
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
   
-  // 실시간 이미지 상태 추적
-  const { status: imageStatus, loading: statusLoading, error: statusError } = useImageStatus(imageId || null)
-  
   const [generatedImage, setLocalGeneratedImage] = useState<string | null>(image)
 
-  // 이미지 상태가 업데이트되면 로컬 상태 동기화
-  useEffect(() => {
-    if (imageStatus) {
-      if (imageStatus.status === "completed" && imageStatus.imageUrl) {
-        setLocalGeneratedImage(imageStatus.imageUrl)
-        setGeneratedImage && setGeneratedImage(imageStatus.imageUrl)
-        setIsLoading && setIsLoading(false)
-      } else if (imageStatus.status === "error") {
-        setIsLoading && setIsLoading(false)
-      }
-    }
-  }, [imageStatus, setGeneratedImage, setIsLoading])
-
-  // 이미지가 변경되면 로컬 상태 동기화 (백업)
+  // 이미지가 변경되면 로컬 상태 동기화
   useEffect(() => {
     if (image) {
       setLocalGeneratedImage(image)
@@ -163,12 +146,9 @@ export function ResultStep({
     setFullscreenImage(null)
   }
 
-  // 로딩 상태 결정
-  const isCurrentlyLoading = isLoading || (imageStatus?.status === 'processing') || statusLoading
-
   return (
     <div className="space-y-6">
-      {isCurrentlyLoading ? (
+      {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="relative">
             <Loader2 className="h-16 w-16 animate-spin text-purple-500 mb-4" />
@@ -177,51 +157,15 @@ export function ResultStep({
             </div>
           </div>
           <p className="text-lg font-medium text-purple-600">미래의 나를 만들고 있어요...</p>
-          <p className="text-purple-400 text-sm mt-2">이미지 생성에는 최대 2분 정도 소요될 수 있습니다</p>
-          
-          {imageStatus?.status && (
-            <div className="mt-4 text-sm text-purple-500">
-              상태: {imageStatus.status === 'processing' ? '처리 중...' : imageStatus.status}
-              {imageStatus.status === 'processing' && (
-                <span className="ml-2">🔄 실시간 업데이트 중</span>
-              )}
-            </div>
-          )}
+          <p className="text-purple-400 text-sm mt-2">백그라운드에서 처리 중입니다. 실시간으로 업데이트됩니다!</p>
 
           <Button
             onClick={handleManualRefresh}
             variant="outline"
             size="sm"
             className="mt-4 rounded-full border-2 border-purple-300 hover:bg-purple-100"
-            disabled={statusLoading}
           >
-            {statusLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
             새로고침
-          </Button>
-        </div>
-      ) : imageStatus?.status === 'error' || statusError ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="text-red-500 mb-4">
-            <svg className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 19.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <p className="text-lg font-medium text-red-600 mb-2">이미지 생성 중 오류가 발생했습니다</p>
-          <p className="text-red-400 text-sm text-center mb-4">
-            {imageStatus?.errorMessage || statusError || "알 수 없는 오류가 발생했습니다"}
-          </p>
-          <Button
-            onClick={handleManualRefresh}
-            variant="outline"
-            size="sm"
-            className="rounded-full border-2 border-red-300 hover:bg-red-100"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            다시 시도
           </Button>
         </div>
       ) : generatedImage ? (

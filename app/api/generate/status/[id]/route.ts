@@ -36,25 +36,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // 이미지 상태 확인 (사용자 ID로 필터링)
     const { data, error } = await supabase
       .from("generated_images")
-      .select("id, image_url, status, error_message, completed_at, created_at, updated_at")
+      .select("id, image_url, status, error_message, completed_at")
       .eq("id", imageId)
       .eq("user_id", userId)
       .single()
 
-    console.log("🔍 조회 결과:", { 
-      dataCount: data ? 1 : 0, 
-      hasError: !!error, 
-      error: error?.message,
-      data: data ? {
-        id: data.id,
-        status: data.status,
-        hasImageUrl: !!data.image_url,
-        hasErrorMessage: !!data.error_message,
-        completedAt: data.completed_at,
-        createdAt: data.created_at,
-        updatedAt: data.updated_at
-      } : null
-    })
+    console.log("🔍 조회 결과:", { dataCount: data ? 1 : 0, hasError: !!error, error: error?.message })
 
     if (error) {
       console.error("❌ 이미지 상태 조회 오류:", error)
