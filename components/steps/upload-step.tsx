@@ -53,46 +53,124 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
   const startCamera = async () => {
     try {
       setError(null)
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-      })
+      
+      // 모바일과 데스크톱 환경에 따른 카메라 설정
+      const constraints = {
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          // 모바일에서 더 나은 성능을 위한 설정
+          frameRate: { ideal: 30, min: 15 }
+        }
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
 
       setCameraStream(stream)
       setIsCameraActive(true)
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        
+        // 비디오가 로드된 후에 메타데이터가 준비되면 이벤트 리스너 추가
+        videoRef.current.onloadedmetadata = () => {
+          console.log("비디오 메타데이터 로드 완료:", {
+            width: videoRef.current?.videoWidth,
+            height: videoRef.current?.videoHeight
+          })
+        }
+        
+        // 비디오가 재생 가능한 상태가 되면 이벤트 리스너 추가
+        videoRef.current.oncanplay = () => {
+          console.log("비디오 재생 준비 완료")
+        }
       }
     } catch (err) {
       console.error("카메라 접근 오류:", err)
-      setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
+      
+      // 모바일에서 더 구체적인 에러 메시지
+      if (err instanceof DOMException) {
+        if (err.name === 'NotAllowedError') {
+          setError("카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.")
+        } else if (err.name === 'NotFoundError') {
+          setError("카메라를 찾을 수 없습니다. 카메라가 연결되어 있는지 확인해주세요.")
+        } else if (err.name === 'NotReadableError') {
+          setError("카메라가 다른 앱에서 사용 중입니다. 다른 앱을 종료하고 다시 시도해주세요.")
+        } else {
+          setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
+        }
+      } else {
+        setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
+      }
     }
   }
 
   // 사진 촬영 함수
   const capturePhoto = () => {
-    if (!canvasRef.current || !videoRef.current) return
+    if (!canvasRef.current || !videoRef.current) {
+      console.error("캔버스 또는 비디오 요소를 찾을 수 없습니다.")
+      return
+    }
 
     const canvas = canvasRef.current
     const video = videoRef.current
     const context = canvas.getContext("2d")
 
-    if (!context) return
+    if (!context) {
+      console.error("캔버스 컨텍스트를 가져올 수 없습니다.")
+      return
+    }
 
-    // 비디오 크기에 맞게 캔버스 설정
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    // 비디오가 로드되었는지 확인
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error("비디오가 아직 로드되지 않았습니다.")
+      setError("비디오가 준비되지 않았습니다. 잠시 후 다시 시도해주세요.")
+      return
+    }
 
-    // 비디오 프레임을 캔버스에 그리기
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    try {
+      // 모바일에서 더 안정적인 캔버스 크기 설정
+      const videoWidth = video.videoWidth
+      const videoHeight = video.videoHeight
+      
+      // 최대 크기 제한 (모바일 성능 고려)
+      const maxWidth = 1280
+      const maxHeight = 720
+      
+      let canvasWidth = videoWidth
+      let canvasHeight = videoHeight
+      
+      // 비율 유지하면서 크기 조정
+      if (canvasWidth > maxWidth || canvasHeight > maxHeight) {
+        const ratio = Math.min(maxWidth / canvasWidth, maxHeight / canvasHeight)
+        canvasWidth = Math.floor(canvasWidth * ratio)
+        canvasHeight = Math.floor(canvasHeight * ratio)
+      }
 
-    // 캔버스에서 이미지 데이터 추출
-    const imageData = canvas.toDataURL("image/png")
-    setPreviewUrl(imageData)
-    updateSelection("photo", imageData)
+      canvas.width = canvasWidth
+      canvas.height = canvasHeight
 
-    // 카메라 스트림 정지
-    stopCameraStream()
+      // 비디오 프레임을 캔버스에 그리기
+      context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
+
+      // 캔버스에서 이미지 데이터 추출 (모바일에서 더 나은 품질)
+      const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      
+      if (imageData && imageData !== "data:,") {
+        setPreviewUrl(imageData)
+        updateSelection("photo", imageData)
+        
+        // 카메라 스트림 정지
+        stopCameraStream()
+      } else {
+        console.error("이미지 데이터를 생성할 수 없습니다.")
+        setError("사진을 촬영할 수 없습니다. 다시 시도해주세요.")
+      }
+    } catch (error) {
+      console.error("사진 촬영 중 오류 발생:", error)
+      setError("사진 촬영 중 오류가 발생했습니다. 다시 시도해주세요.")
+    }
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,13 +289,26 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                       autoPlay
                       playsInline
                       muted
-                      className="w-full rounded-xl border-4 border-pink-300"
+                      onLoadedData={() => console.log("비디오 데이터 로드 완료")}
+                      onCanPlay={() => console.log("비디오 재생 가능")}
+                      onLoadedMetadata={() => console.log("비디오 메타데이터 로드 완료")}
+                      className="w-full rounded-xl border-4 border-pink-300 touch-none"
+                      style={{ 
+                        WebkitUserSelect: 'none',
+                        userSelect: 'none',
+                        WebkitTouchCallout: 'none'
+                      }}
                     />
                     <canvas ref={canvasRef} className="hidden" />
 
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                       <Button
-                        onClick={capturePhoto}
+                        onClick={() => {
+                          // 비디오가 준비될 때까지 잠시 대기
+                          setTimeout(() => {
+                            capturePhoto()
+                          }, 500)
+                        }}
                         className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white w-14 h-14 flex items-center justify-center"
                       >
                         <Camera size={24} />
