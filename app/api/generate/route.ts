@@ -701,7 +701,7 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
       break
     case "astronaut":
       jobDescription = "우주비행사"
-      environmentDescription = "우주정거장이나 별과 지구가 배경으로 보이는 첨단 장비와 우주선 요소들이 있는 곳에서 얼굴 이미지를 해치지 않는 선에서"
+      environmentDescription = "우주정거장이나 별과 지구가 배경으로 보이는 첨단 장비와 우주선 요소들이 있는 곳에서"
       break
     case "chef":
       jobDescription = "요리사로"
