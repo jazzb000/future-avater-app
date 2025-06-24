@@ -227,15 +227,15 @@ export function Navbar() {
                           href="/login" 
                           className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-purple-300 hover:bg-purple-50 text-purple-600"
                           onClick={handleMobileMenuClose}
-                        >
-                          로그인
+                          >
+                            로그인
                         </Link>
                         <Link 
                           href="/signup" 
                           className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
                           onClick={handleMobileMenuClose}
                         >
-                          회원가입
+                            회원가입
                         </Link>
                       </div>
                     )}

@@ -45,7 +45,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     if (activeTab === "camera") {
       // 탭이 변경되자마자 즉시 카메라 시작
       setTimeout(() => {
-        startCamera()
+      startCamera()
       }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
     } else {
       stopCameraStream()
@@ -143,7 +143,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
         }
       } else {
-        setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
+      setError("카메라에 접근할 수 없습니다. 카메라 권한을 확인해주세요.")
       }
     }
   }
@@ -193,18 +193,18 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
-      // 비디오 프레임을 캔버스에 그리기
+    // 비디오 프레임을 캔버스에 그리기
       context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
 
       // 캔버스에서 이미지 데이터 추출 (모바일에서 더 나은 품질)
       const imageData = canvas.toDataURL("image/jpeg", 0.9)
-      
+
       if (imageData && imageData !== "data:,") {
-        setPreviewUrl(imageData)
-        updateSelection("photo", imageData)
-        
-        // 카메라 스트림 정지
-        stopCameraStream()
+    setPreviewUrl(imageData)
+    updateSelection("photo", imageData)
+
+    // 카메라 스트림 정지
+    stopCameraStream()
       } else {
         console.error("이미지 데이터를 생성할 수 없습니다.")
         setError("사진을 촬영할 수 없습니다. 다시 시도해주세요.")

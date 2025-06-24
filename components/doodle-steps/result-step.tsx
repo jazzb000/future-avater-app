@@ -211,12 +211,9 @@ export function ResultStep({
     window.location.reload()
   }
 
-  // 로딩 상태 결정
-  const isCurrentlyLoading = isLoading || (imageStatus?.status === 'processing') || statusLoading
-
   return (
     <div className="space-y-6">
-      {isCurrentlyLoading ? (
+      {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="relative">
             <Loader2 className="h-16 w-16 animate-spin text-teal-500 mb-4" />

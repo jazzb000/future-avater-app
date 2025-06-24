@@ -231,7 +231,7 @@ export function DoodleWizard() {
             disabled
           >
             티켓 구매 (준비중)
-          </Button>
+            </Button>
         </div>
       )}
 
@@ -249,17 +249,17 @@ export function DoodleWizard() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
-                          {error.includes("티켓") && (
-              <div className="mt-2">
-                <Button
-                  size="sm"
+              {error.includes("티켓") && (
+                <div className="mt-2">
+                    <Button
+                      size="sm"
                   className="rounded-full bg-gray-400 text-white text-xs cursor-not-allowed opacity-50"
                   disabled
-                >
+                    >
                   티켓 구매하기 (준비중)
-                </Button>
-              </div>
-            )}
+                    </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

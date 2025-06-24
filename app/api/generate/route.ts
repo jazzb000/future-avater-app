@@ -43,7 +43,7 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     console.log("🚀 미래의 나 API 호출 시작")
-    const { photo, age, job, style, layout, customLayoutData, userId } = await req.json()
+    const { photo, age, job, style, layout, customLayoutData, name, userId } = await req.json()
 
     if (!photo || !age || !job || !style || !layout || !userId) {
       console.log("❌ 필수 항목 누락:", { 
@@ -197,7 +197,7 @@ export async function POST(req: Request) {
 
     try {
       // 동기적으로 이미지 생성
-      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout)
+      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout, name)
 
       // 이미지 생성 완료 후 응답 반환
       console.log("🎉 이미지 생성 완료 - 응답 반환:", {
@@ -259,6 +259,175 @@ export async function POST(req: Request) {
 
 // 이미지 생성 함수
 // 한국잡월드 로고 합성 함수
+async function addBusinessCardLayout(imageBuffer: Buffer, name: string, job: string): Promise<Buffer> {
+  try {
+    console.log("💼 명함 레이아웃 합성 시작:", { name, job })
+    
+    // 명함 템플릿 로드
+    const templatePath = path.join(process.cwd(), "public", "Frame 21.png")
+    let template: sharp.Sharp
+    
+    try {
+      await fs.access(templatePath)
+      template = sharp(templatePath)
+      console.log("✅ 명함 템플릿 로드 성공")
+    } catch (templateError) {
+      console.log("⚠️ 명함 템플릿 로드 실패, 기본 템플릿 생성")
+      // 템플릿 파일이 없으면 기본 명함 배경 생성 (실제 명함 비율로)
+      template = sharp({
+        create: {
+          width: 600,
+          height: 360,
+          channels: 4,
+          background: { r: 245, g: 245, b: 245, alpha: 1 }
+        }
+      })
+    }
+
+    // 템플릿 정보 가져오기
+    const templateMetadata = await template.metadata()
+    const templateWidth = templateMetadata.width || 600
+    const templateHeight = templateMetadata.height || 360
+    
+    console.log("📐 템플릿 크기:", { width: templateWidth, height: templateHeight })
+
+    // 한국어 직업명 매핑
+    const jobNames: { [key: string]: string } = {
+      doctor: "의사",
+      teacher: "선생님", 
+      astronaut: "우주비행사",
+      chef: "요리사",
+      firefighter: "소방관",
+      scientist: "과학자",
+      artist: "예술가",
+      athlete: "운동선수",
+      announcer: "아나운서"
+    }
+
+    const jobKorean = jobNames[job] || job
+
+    // 사용자 이미지 크기 계산 (명함 왼쪽 1/3 영역에 맞춤)
+    const imageWidth = Math.floor(templateHeight * 0.8) // 높이의 80%를 너비로
+    const imageHeight = Math.floor(templateHeight * 0.8) // 높이의 80%
+    
+    console.log("📷 사용자 이미지 크기:", { width: imageWidth, height: imageHeight })
+
+    // 사용자 이미지 처리 
+    const userImage = await sharp(imageBuffer)
+      .resize(imageWidth, imageHeight, { 
+        fit: 'cover',
+        position: 'center'
+      })
+      .png()
+      .toBuffer()
+
+    // 왼쪽 모서리만 둥글게 처리하는 마스크 생성
+    const roundedMask = Buffer.from(
+      `<svg width="${imageWidth}" height="${imageHeight}">
+        <defs>
+          <mask id="rounded">
+            <rect width="${imageWidth}" height="${imageHeight}" fill="black"/>
+            <path d="M ${imageWidth/2} 0 
+                     L ${imageWidth} 0 
+                     L ${imageWidth} ${imageHeight} 
+                     L ${imageWidth/2} ${imageHeight} 
+                     Q 0 ${imageHeight} 0 ${imageHeight/2} 
+                     Q 0 0 ${imageWidth/2} 0 Z" 
+                  fill="white"/>
+          </mask>
+        </defs>
+        <rect width="${imageWidth}" height="${imageHeight}" fill="white" mask="url(#rounded)"/>
+      </svg>`
+    )
+
+    const maskedUserImage = await sharp(userImage)
+      .composite([
+        {
+          input: roundedMask,
+          blend: 'dest-in'
+        }
+      ])
+      .png()
+      .toBuffer()
+
+    // 텍스트 위치 계산 (오른쪽 영역에 배치)
+    const textStartX = Math.floor(templateWidth * 0.4) // 템플릿 너비의 40% 지점부터
+    const nameY = Math.floor(templateHeight * 0.35) // 위에서 35% 지점
+    const jobY = Math.floor(templateHeight * 0.5) // 위에서 50% 지점
+    
+    // 폰트 크기 계산 (템플릿 크기에 비례)
+    const nameFontSize = Math.max(Math.floor(templateWidth * 0.06), 24) // 최소 24px
+    const jobFontSize = Math.max(Math.floor(templateWidth * 0.04), 16) // 최소 16px
+    
+    console.log("📝 텍스트 설정:", { 
+      textStartX, 
+      nameY, 
+      jobY, 
+      nameFontSize, 
+      jobFontSize 
+    })
+
+    // SVG 텍스트 오버레이 생성
+    const svgOverlay = `
+      <svg width="${templateWidth}" height="${templateHeight}">
+        <defs>
+          <style>
+            .name-text { 
+              font-family: 'Arial Black', 'Malgun Gothic', sans-serif; 
+              font-size: ${nameFontSize}px; 
+              font-weight: bold; 
+              fill: #1a1a1a;
+              dominant-baseline: middle;
+            }
+            .job-text { 
+              font-family: 'Arial', 'Malgun Gothic', sans-serif; 
+              font-size: ${jobFontSize}px; 
+              font-weight: 500; 
+              fill: #4a5568;
+              dominant-baseline: middle;
+            }
+          </style>
+        </defs>
+        <text x="${textStartX}" y="${nameY}" class="name-text">${name}</text>
+        <text x="${textStartX}" y="${jobY}" class="job-text">${jobKorean}</text>
+      </svg>
+    `
+
+    // 이미지 위치 계산 (왼쪽에 배치)
+    const imageLeft = Math.floor(templateWidth * 0.03) // 왼쪽 여백 3%
+    const imageTop = Math.floor((templateHeight - imageHeight) / 2) // 세로 중앙
+
+    console.log("📍 이미지 위치:", { imageLeft, imageTop })
+
+    // 최종 합성
+    const result = await template
+      .composite([
+        {
+          input: maskedUserImage,
+          left: imageLeft,
+          top: imageTop,
+          blend: 'over'
+        },
+        {
+          input: Buffer.from(svgOverlay),
+          left: 0,
+          top: 0,
+          blend: 'over'
+        }
+      ])
+      .png()
+      .toBuffer()
+
+    console.log("✅ 명함 레이아웃 합성 완료")
+    return result
+
+  } catch (error: any) {
+    console.error("❌ 명함 레이아웃 합성 실패:", error)
+    console.error("오류 상세:", error.stack)
+    return imageBuffer // 실패 시 원본 반환
+  }
+}
+
 async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
   try {
     // 로고 파일 경로
@@ -332,7 +501,8 @@ async function processImageGeneration(
   prompt: string, 
   userId: string, 
   job: string,
-  layout?: string
+  layout?: string,
+  name?: string
 ): Promise<string> {
   const supabase = supabaseAdmin()
   
@@ -390,6 +560,12 @@ async function processImageGeneration(
           downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
         }
         
+        // 명함 스타일인 경우 명함 합성
+        if (layout === "business-card" && name) {
+          console.log("💼 명함 스타일 감지 - 명함 합성 진행")
+          downloadedImageBuffer = await addBusinessCardLayout(downloadedImageBuffer, name, job)
+        }
+        
         // Storage에 업로드
         const fileName = generateUniqueFileName(userId, 'generated')
         console.log("💾 Storage 업로드 중:", { fileName })
@@ -411,6 +587,12 @@ async function processImageGeneration(
         if (layout === "korea-job-world") {
           console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
           imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
+        }
+        
+        // 명함 스타일인 경우 명함 합성
+        if (layout === "business-card" && name) {
+          console.log("💼 명함 스타일 감지 - 명함 합성 진행")
+          imageBuffer = await addBusinessCardLayout(imageBuffer, name, job)
         }
         
         // Storage에 업로드
@@ -511,15 +693,15 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   switch (job) {
     case "doctor":
       jobDescription = "의사"
-      environmentDescription = "사진 배경이나 소품들이 의사 느낌나 보이는"
+      environmentDescription = "사진 배경이나 소품들이 의사 느낌나 보이는 얼굴 이미지를 해치지 않는 선에서"
       break
     case "teacher":
       jobDescription = "선생님"
-      environmentDescription = "교육 자료를 들거나 따뜻하고 영감을 주는 표정의 교사 등 교사 느낌이 나는 소품들을 활용"
+      environmentDescription = "교육 자료를 들거나 따뜻하고 영감을 주는 표정의 교사 등 교사 느낌이 나는 소품들을 활용 얼굴 이미지를 해치지 않는 선에서"
       break
     case "astronaut":
       jobDescription = "우주비행사"
-      environmentDescription = "우주정거장이나 별과 지구가 배경으로 보이는 첨단 장비와 우주선 요소들이 있는 곳에서"
+      environmentDescription = "우주정거장이나 별과 지구가 배경으로 보이는 첨단 장비와 우주선 요소들이 있는 곳에서 얼굴 이미지를 해치지 않는 선에서"
       break
     case "chef":
       jobDescription = "요리사로"
@@ -527,7 +709,7 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
       break
     case "firefighter":
       jobDescription = "소방관"
-      environmentDescription = "소방차나 응급 현장 근처에서 전문 소방 장비와 안전 장비가 있는 곳에서"
+      environmentDescription = "소방차나 응급 현장 근처에서 전문 소방 장비와 안전 장비가 있는 곳에서 얼굴 이미지를 해치지 않는 선에서"
       break
     case "scientist":
       jobDescription = "과학자"
@@ -535,7 +717,7 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
       break
     case "artist":
       jobDescription = "창의적이고 물감이 묻을 수 있는 옷을 입고 붓이나 예술 도구를 들고, 상상력이 풍부하고 표현력이 뛰어난 모습의 예술가로"
-      environmentDescription = "캔버스, 물감, 붓, 진행 중인 예술 작품들이 있는 아트 스튜디오에서"
+      environmentDescription = "아트 스튜디오에서 얼굴 이미지를 해치지 않는 선에서"
       break
     case "athlete":
       jobDescription = "해당 종목에 적합한 스포츠 복장을 입고 최상의 신체 조건을 갖추고, 결단력 있고 집중된 표정의 전문 운동선수로"
@@ -592,8 +774,8 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   let compositionInstructions = ""
   switch (layout) {
     case "business-card":
-      layoutDescription = "깔끔한 타이포그래피와 기업적 디자인 요소를 가진 전문적인 명함 레이아웃으로 설계된"
-      compositionInstructions = "전문적인 포맷팅과 명확한 계층구조, 기업적 미학을 가진 명함으로 구성하여"
+      layoutDescription = "전문적인 명함에 적합한 깔끔하고 격식 있는 비즈니스 스타일 초상화로"
+      compositionInstructions = "명함에 적합한 전문적이고 신뢰감 있는 표정과 자세로, 비즈니스 환경에 어울리는 복장과 배경으로"
       break
     case "certificate":
       layoutDescription = "공식적인 테두리와 우아한 타이포그래피, 의식적 요소를 가진 공식 인증서나 상장으로 설계된"
@@ -638,6 +820,6 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
 레이아웃 및 구성: 최종 구성은 ${layoutDescription} 형태여야 합니다. ${compositionInstructions} 구성해주세요.
 
 
-최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 이쁘게 만들어줘 한국식 화장을 한 상태로 만들어줘야함 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 멋있는부분을 사용해서 멋있게 만들어줘
+최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 얼굴특성에 맞게 이쁘게 만들어줘 한국식 화장을 한 상태로 만들어줘야함 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 멋있는부분을 사용해서 멋있게 만들어줘
     `
 }

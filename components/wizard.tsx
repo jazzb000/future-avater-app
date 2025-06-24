@@ -11,6 +11,7 @@ import { AgeStep } from "./steps/age-step"
 import { JobStep } from "./steps/job-step"
 import { StyleStep } from "./steps/style-step"
 import { LayoutStep } from "./steps/layout-step"
+import { NameStep } from "./steps/name-step"
 import { ResultStep } from "./steps/result-step"
 import { Check, ChevronLeft, ChevronRight } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -30,6 +31,7 @@ export type UserSelections = {
   style: string | null
   layout: string | null
   customLayoutData: string | null
+  name: string | null
 }
 
 export function Wizard() {
@@ -47,6 +49,7 @@ export function Wizard() {
     style: null,
     layout: null,
     customLayoutData: null,
+    name: null,
   })
   const router = useRouter()
 
@@ -60,7 +63,8 @@ export function Wizard() {
     })
   }, [])
 
-  const steps: WizardStep[] = [
+  // 명함 스타일일 때만 이름 입력 단계 추가
+  const baseSteps = [
     {
       id: 1,
       title: "사진 올리기",
@@ -86,21 +90,49 @@ export function Wizard() {
       title: "레이아웃 선택하기",
       component: <LayoutStep updateSelection={updateSelection} currentLayout={selections.layout} />,
     },
-    {
-      id: 6,
-      title: "미래의 나!",
-      component: (
-        <ResultStep
-          image={generatedImage}
-          isLoading={isGenerating}
-          imageId={generatedImageId}
-          setIsLoading={setIsGenerating}
-          setGeneratedImage={setGeneratedImage}
-          originalPhoto={selections.photo}
-        />
-      ),
-    },
   ]
+
+  // 명함 스타일일 때 이름 입력 단계 추가
+  const steps: WizardStep[] = selections.layout === "business-card" 
+    ? [
+        ...baseSteps,
+        {
+          id: 6,
+          title: "이름 입력하기",
+          component: <NameStep updateSelection={updateSelection} currentName={selections.name} currentJob={selections.job} />,
+        },
+        {
+          id: 7,
+          title: "미래의 나!",
+          component: (
+            <ResultStep
+              image={generatedImage}
+              isLoading={isGenerating}
+              imageId={generatedImageId}
+              setIsLoading={setIsGenerating}
+              setGeneratedImage={setGeneratedImage}
+              originalPhoto={selections.photo}
+            />
+          ),
+        },
+      ]
+    : [
+        ...baseSteps,
+        {
+          id: 6,
+          title: "미래의 나!",
+          component: (
+            <ResultStep
+              image={generatedImage}
+              isLoading={isGenerating}
+              imageId={generatedImageId}
+              setIsLoading={setIsGenerating}
+              setGeneratedImage={setGeneratedImage}
+              originalPhoto={selections.photo}
+            />
+          ),
+        },
+      ]
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -154,6 +186,7 @@ export function Wizard() {
             style: selections.style,
             layout: selections.layout,
             customLayoutData: selections.customLayoutData,
+            name: selections.name,
             userId: user.id,
           }),
           signal: controller.signal, // 타임아웃 신호 추가
@@ -243,6 +276,12 @@ export function Wizard() {
         return !selections.style
       case 4:
         return !selections.layout
+      case 5:
+        // 명함 스타일일 때만 이름 입력 필수
+        if (selections.layout === "business-card") {
+          return !selections.name || selections.name.trim() === ""
+        }
+        return false
       default:
         return false
     }
@@ -261,14 +300,14 @@ export function Wizard() {
           <p className="text-sm text-purple-700">
             <span className="font-medium">남은 티켓:</span> {remainingTickets}개
           </p>
-          <Button
-            variant="outline"
-            size="sm"
+            <Button
+              variant="outline"
+              size="sm"
             className="text-xs h-7 rounded-full border-gray-300 hover:bg-gray-200 cursor-not-allowed opacity-50"
             disabled
-          >
+            >
             티켓 구매 (준비중)
-          </Button>
+            </Button>
         </div>
       )}
 
@@ -288,13 +327,13 @@ export function Wizard() {
               <p className="text-sm text-red-700">{error}</p>
               {error.includes("티켓") && (
                 <div className="mt-2">
-                  <Button
-                    size="sm"
+                    <Button
+                      size="sm"
                     className="rounded-full bg-gray-400 text-white text-xs cursor-not-allowed opacity-50"
                     disabled
-                  >
+                    >
                     티켓 구매하기 (준비중)
-                  </Button>
+                    </Button>
                 </div>
               )}
             </div>
