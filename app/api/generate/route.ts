@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin, uploadImageToStorage, base64ToBuffer, generateUniqueFileName } from "@/lib/supabase"
 import OpenAI from "openai"
+import sharp from "sharp"
+import fs from "fs/promises"
+import path from "path"
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
@@ -194,10 +197,17 @@ export async function POST(req: Request) {
 
     try {
       // 동기적으로 이미지 생성
-      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job)
+      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout)
 
       // 이미지 생성 완료 후 응답 반환
-      console.log("🎉 이미지 생성 완료 - 응답 반환")
+      console.log("🎉 이미지 생성 완료 - 응답 반환:", {
+        jobId,
+        imageUrl: imageUrl.substring(0, 100) + "...",
+        isBase64: imageUrl.startsWith("data:"),
+        urlLength: imageUrl.length,
+        timestamp: new Date().toISOString()
+      })
+      
       return NextResponse.json({
         success: true,
         jobId: jobId,
@@ -205,6 +215,12 @@ export async function POST(req: Request) {
         imageUrl: imageUrl,
         status: "completed",
         message: "이미지 생성이 완료되었습니다.",
+        debug: {
+          timestamp: new Date().toISOString(),
+          isBase64: imageUrl.startsWith("data:"),
+          urlLength: imageUrl.length,
+          urlPreview: imageUrl.substring(0, 100) + "..."
+        }
       })
     } catch (imageError: any) {
       console.error("이미지 생성 실패:", imageError)
@@ -242,12 +258,81 @@ export async function POST(req: Request) {
 }
 
 // 이미지 생성 함수
+// 한국잡월드 로고 합성 함수
+async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    // 로고 파일 경로
+    const logoPath = path.join(process.cwd(), 'public', '한국잡월드.svg')
+    
+    // SVG 파일 읽기
+    const logoSvg = await fs.readFile(logoPath, 'utf-8')
+    
+    // 이미지 정보 가져오기
+    const image = sharp(imageBuffer)
+    const { width, height } = await image.metadata()
+    
+    if (!width || !height || width < 100 || height < 100) {
+      throw new Error(`이미지 크기가 유효하지 않습니다: ${width}x${height}`)
+    }
+    
+    // SVG의 원래 비율 계산 (viewBox에서 894.47179 x 300.00003)
+    const svgAspectRatio = 894.47179 / 300.00003 // 약 2.98
+    
+    // 로고 높이를 이미지 크기의 10%로 설정하고, 원래 비율에 맞춰 너비 계산
+    const logoHeight = Math.min(width, height) * 0.10
+    const logoWidth = logoHeight * svgAspectRatio
+    
+    console.log(`📐 로고 비율 계산: 원본 비율 ${svgAspectRatio.toFixed(2)}, 크기 ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`)
+    
+    // SVG를 PNG로 변환하여 원래 비율 유지 (고품질 렌더링)
+    const logoBuffer = await sharp(Buffer.from(logoSvg))
+      .resize(Math.round(logoWidth), Math.round(logoHeight), {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // 투명 배경
+      })
+      .png({ 
+        quality: 90,
+        compressionLevel: 6
+      })
+      .toBuffer()
+    
+    // 오른쪽 아래에 로고 합성 (여백을 충분히 확보)
+    const padding = logoHeight * 0.3 // 여백을 늘려서 잘림 방지
+    let logoX = Math.round(width - logoWidth - padding)
+    let logoY = Math.round(height - logoHeight - padding)
+    
+    // 경계 검사 - 로고가 이미지 범위를 벗어나지 않도록 보정
+    logoX = Math.max(0, Math.min(logoX, width - logoWidth))
+    logoY = Math.max(0, Math.min(logoY, height - logoHeight))
+    
+    console.log(`🏢 한국잡월드 로고 합성 중: 위치(${logoX}, ${logoY}), 크기(${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}), 이미지크기(${width}x${height})`)
+    
+    const result = await image
+      .composite([{
+        input: logoBuffer,
+        left: logoX,
+        top: logoY,
+        blend: 'over' // 투명도 지원
+      }])
+      .png() // 원본 품질 유지를 위해 PNG로 변경
+      .toBuffer()
+    
+    console.log('✅ 한국잡월드 로고 합성 완료')
+    return result
+    
+  } catch (error) {
+    console.log('⚠️ 로고 합성 실패, 원본 이미지 반환:', error)
+    return imageBuffer
+  }
+}
+
 async function processImageGeneration(
   jobId: string, 
   photo: string, 
   prompt: string, 
   userId: string, 
-  job: string
+  job: string,
+  layout?: string
 ): Promise<string> {
   const supabase = supabaseAdmin()
   
@@ -266,7 +351,7 @@ async function processImageGeneration(
 
     // OpenAI API를 사용하여 이미지 생성
     console.log("🤖 OpenAI API 호출 시작...")
-    console.log("📋 API 설정:", { model: "gpt-image-1", size: "1536x1024", quality: "high" })
+    console.log("📋 API 설정:", { model: "gpt-image-1", size: "1024x1536", quality: "high" })
     
     let generatedImageUrl: string | null = null
 
@@ -276,7 +361,7 @@ async function processImageGeneration(
         image: imageFile,
         prompt: prompt,
         n: 1,
-        size: "1536x1024",
+        size: "1024x1536",
         quality: "high",
         output_format: "png",
         background: "auto",
@@ -293,10 +378,17 @@ async function processImageGeneration(
       const imageData = result.data[0]
 
       if (imageData.url) {
-        // URL로 받은 경우 - 이미지를 다운로드하여 Storage에 업로드
-        console.log("📥 OpenAI에서 받은 이미지 URL을 Storage로 업로드 중...")
+        // URL로 받은 경우 - 이미지를 다운로드
+        console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
         const imageResponse = await fetch(imageData.url)
-        const downloadedImageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+        const arrayBuffer = await imageResponse.arrayBuffer()
+        let downloadedImageBuffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer))
+        
+        // 한국잡월드 레이아웃인 경우 로고 합성
+        if (layout === "korea-job-world") {
+          console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
+          downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
+        }
         
         // Storage에 업로드
         const fileName = generateUniqueFileName(userId, 'generated')
@@ -311,9 +403,15 @@ async function processImageGeneration(
         generatedImageUrl = storageUrl
         console.log("✅ Storage 업로드 완료:", { url: storageUrl?.substring(0, 50) + "..." })
       } else if (imageData.b64_json) {
-        // Base64로 받은 경우 - 직접 Storage에 업로드
-        console.log("📥 OpenAI에서 받은 base64 이미지를 Storage로 업로드 중...")
-        const imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
+        // Base64로 받은 경우 - 이미지 처리
+        console.log("📥 OpenAI에서 받은 base64 이미지 처리 중...")
+        let imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
+        
+        // 한국잡월드 레이아웃인 경우 로고 합성
+        if (layout === "korea-job-world") {
+          console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
+          imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
+        }
         
         // Storage에 업로드
         const fileName = generateUniqueFileName(userId, 'generated')
@@ -392,19 +490,19 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   let ageDescription = ""
   switch (age) {
     case "20s":
-      ageDescription = "a young adult in their 20s, energetic and fresh-faced with bright eyes and an optimistic expression, representing the enthusiasm and potential of youth"
+      ageDescription = "20대"
       break
     case "30s":
-      ageDescription = "a confident professional in their 30s, experienced but still youthful with a mature yet dynamic appearance, showing competence and ambition"
+      ageDescription = "30대"
       break
     case "40s":
-      ageDescription = "an established professional in their 40s, mature and accomplished with a wise and authoritative presence, displaying years of experience and expertise"
+      ageDescription = "40대"
       break
     case "50s":
-      ageDescription = "a distinguished professional in their 50s, experienced and respected with a dignified and seasoned appearance, embodying wisdom and leadership"
+      ageDescription = "50대"
       break
     default:
-      ageDescription = "an adult professional with appropriate age characteristics"
+      ageDescription = "적절한 연령대 특성을 가진 한국인 전문직"
   }
 
   // 직업에 따른 상세한 특성 정의
@@ -412,73 +510,81 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   let environmentDescription = ""
   switch (job) {
     case "doctor":
-      jobDescription = "a medical doctor wearing a pristine white coat with a stethoscope around their neck, medical badge visible, confident and caring expression"
-      environmentDescription = "in a modern hospital setting with medical equipment, clean white walls, and professional lighting"
+      jobDescription = "의사"
+      environmentDescription = "사진 배경이나 소품들이 의사 느낌나 보이는"
       break
     case "teacher":
-      jobDescription = "a teacher wearing professional but approachable attire, holding educational materials or pointing to a whiteboard, with a warm and inspiring expression"
-      environmentDescription = "in a bright classroom with books, educational posters, and learning materials visible in the background"
+      jobDescription = "선생님"
+      environmentDescription = "교육 자료를 들거나 따뜻하고 영감을 주는 표정의 교사 등 교사 느낌이 나는 소품들을 활용"
       break
     case "astronaut":
-      jobDescription = "an astronaut wearing a detailed space suit with NASA patches, helmet either on or nearby, with a look of determination and wonder"
-      environmentDescription = "in a space station or against a backdrop of stars and Earth, with high-tech equipment and spacecraft elements"
+      jobDescription = "우주비행사"
+      environmentDescription = "우주정거장이나 별과 지구가 배경으로 보이는 첨단 장비와 우주선 요소들이 있는 곳에서"
       break
     case "chef":
-      jobDescription = "a professional chef wearing a traditional white chef's uniform with a tall toque hat, holding cooking utensils, with a passionate and creative expression"
-      environmentDescription = "in a modern professional kitchen with stainless steel equipment, fresh ingredients, and culinary tools"
+      jobDescription = "요리사로"
+      environmentDescription = ""
       break
     case "firefighter":
-      jobDescription = "a firefighter wearing protective gear including helmet and reflective stripes, with a brave and heroic expression, ready for action"
-      environmentDescription = "near a fire truck or emergency scene with professional firefighting equipment and safety gear"
+      jobDescription = "소방관"
+      environmentDescription = "소방차나 응급 현장 근처에서 전문 소방 장비와 안전 장비가 있는 곳에서"
       break
     case "scientist":
-      jobDescription = "a scientist wearing a clean white lab coat with safety goggles, holding scientific instruments or examining research materials, with a curious and intelligent expression"
-      environmentDescription = "in a modern laboratory with scientific equipment, test tubes, microscopes, and research materials"
+      jobDescription = "과학자"
+      environmentDescription = ""
       break
     case "artist":
-      jobDescription = "an artist wearing creative, possibly paint-splattered clothing, holding brushes or artistic tools, with an imaginative and expressive demeanor"
-      environmentDescription = "in an art studio with canvases, paints, brushes, and artistic works in progress"
+      jobDescription = "창의적이고 물감이 묻을 수 있는 옷을 입고 붓이나 예술 도구를 들고, 상상력이 풍부하고 표현력이 뛰어난 모습의 예술가로"
+      environmentDescription = "캔버스, 물감, 붓, 진행 중인 예술 작품들이 있는 아트 스튜디오에서"
       break
     case "athlete":
-      jobDescription = "a professional athlete wearing appropriate sports attire for their discipline, in peak physical condition, with a determined and focused expression"
-      environmentDescription = "in a sports facility or training environment with relevant equipment and athletic gear"
+      jobDescription = "해당 종목에 적합한 스포츠 복장을 입고 최상의 신체 조건을 갖추고, 결단력 있고 집중된 표정의 전문 운동선수로"
+      environmentDescription = "관련 장비와 운동 기구가 있는 스포츠 시설이나 훈련 환경에서"
+      break
+    case "announcer":
+      jobDescription = "아나운서"
+      environmentDescription = "방송국 스튜디오나 뉴스 데스크에서 전문적인 조명과 카메라, 뉴스 세트가 배경으로 보이는"
       break
     default:
-      jobDescription = "a professional in their field wearing appropriate attire with a confident and competent expression"
-      environmentDescription = "in a professional work environment suitable for their occupation"
+      jobDescription = "해당 분야에 적합한 복장을 입고 자신감 있고 능력 있는 표정의 전문직 종사자로"
+      environmentDescription = "해당 직업에 적합한 전문적인 업무 환경에서"
   }
 
   // 스타일에 따른 상세한 시각적 특성 정의
   let styleDescription = ""
   let renderingInstructions = ""
   switch (style) {
+    case "realistic":
+      styleDescription = ""
+      renderingInstructions = "자연스러운 조명과 사실적인 피부 질감"
+      break
     case "cartoon":
-      styleDescription = "in a vibrant cartoon style with exaggerated features, bright colors, and clean line art"
-      renderingInstructions = "Use bold outlines, simplified shapes, and saturated colors typical of professional animation"
+      styleDescription = "선명한 만화 스타일로, 과장된 특징과 밝은 색상, 깔끔한 선화를 가진"
+      renderingInstructions = "전문 애니메이션의 굵은 윤곽선, 단순화된 형태, 채도 높은 색상을 사용하여"
       break
     case "anime":
-      styleDescription = "in Japanese anime style with large expressive eyes, detailed hair, and characteristic anime proportions"
-      renderingInstructions = "Apply anime shading techniques, cel-shading effects, and typical anime color palettes"
+      styleDescription = "일본 애니메이션 스타일로, 크고 표현력 있는 눈과 상세한 머리카락, 특징적인 애니메 비율을 가진"
+      renderingInstructions = "애니메 음영 기법과 셀 셰이딩 효과, 전형적인 애니메 색상 팔레트를 적용하여"
       break
     case "pixar":
-      styleDescription = "in 3D Pixar animation style with detailed textures, soft lighting, and characteristic Pixar character design"
-      renderingInstructions = "Use 3D rendering with subsurface scattering, realistic materials, and Pixar's signature warm lighting"
+      styleDescription = "픽사 3D 애니메이션 스타일로, 상세한 텍스처와 부드러운 조명, 특징적인 픽사 캐릭터 디자인을 가진"
+      renderingInstructions = "서브서피스 스캐터링과 사실적인 재질, 픽사 특유의 따뜻한 조명으로 3D 렌더링하여"
       break
     case "comic":
-      styleDescription = "as a comic book character with bold lines, dramatic shadows, and vibrant comic book colors"
-      renderingInstructions = "Apply comic book art techniques including halftone patterns, bold outlines, and dynamic poses"
+      styleDescription = "만화책 캐릭터 스타일로, 굵은 선과 극적인 그림자, 선명한 만화책 색상을 가진"
+      renderingInstructions = "하프톤 패턴과 굵은 윤곽선, 역동적인 포즈를 포함한 만화책 아트 기법을 적용하여"
       break
     case "poster":
-      styleDescription = "as a professional movie poster with dramatic lighting, cinematic composition, and high production value"
-      renderingInstructions = "Use cinematic lighting, professional photography techniques, and movie poster composition"
+      styleDescription = "전문적인 영화 포스터 스타일로, 극적인 조명과 영화적 구성, 높은 제작 가치를 가진"
+      renderingInstructions = "영화적 조명과 전문 사진 기법, 영화 포스터 구성을 사용하여"
       break
     case "caricature":
-      styleDescription = "as a caricature with exaggerated facial features while maintaining recognizability and professional appearance"
-      renderingInstructions = "Emphasize distinctive features while keeping the professional context and dignity"
+      styleDescription = "캐리커쳐 스타일로, 과장된 얼굴 특징을 가지면서도 인식 가능하고 전문적인 외모를 유지하는"
+      renderingInstructions = "전문적인 맥락과 품위를 유지하면서 특징적인 부분을 강조하여"
       break
     default:
-      styleDescription = "in a high-quality, detailed artistic style with professional rendering"
-      renderingInstructions = "Use professional illustration techniques with attention to detail and realistic proportions"
+      styleDescription = "고품질의 상세한 예술적 스타일로, 전문적인 렌더링을 가진"
+      renderingInstructions = "디테일과 사실적인 비율에 주의를 기울여 전문적인 일러스트레이션 기법을 사용하여"
   }
 
   // 레이아웃에 따른 구성 정의
@@ -486,63 +592,52 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   let compositionInstructions = ""
   switch (layout) {
     case "business-card":
-      layoutDescription = "designed as a professional business card layout with clean typography and corporate design elements"
-      compositionInstructions = "Compose as a business card with professional formatting, clear hierarchy, and corporate aesthetics"
+      layoutDescription = "깔끔한 타이포그래피와 기업적 디자인 요소를 가진 전문적인 명함 레이아웃으로 설계된"
+      compositionInstructions = "전문적인 포맷팅과 명확한 계층구조, 기업적 미학을 가진 명함으로 구성하여"
       break
     case "certificate":
-      layoutDescription = "designed as an official certificate or award with formal borders, elegant typography, and ceremonial elements"
-      compositionInstructions = "Create a formal certificate layout with decorative borders, official seals, and prestigious presentation"
+      layoutDescription = "공식적인 테두리와 우아한 타이포그래피, 의식적 요소를 가진 공식 인증서나 상장으로 설계된"
+      compositionInstructions = "장식적 테두리와 공식 인장, 권위 있는 표현을 가진 정식 인증서 레이아웃으로 만들어"
       break
     case "magazine":
-      layoutDescription = "designed as a magazine cover with bold headlines, professional photography layout, and editorial design"
-      compositionInstructions = "Use magazine cover composition with striking visuals, typography integration, and editorial layout principles"
+      layoutDescription = "굵은 헤드라인과 전문적인 사진 레이아웃, 편집 디자인을 가진 잡지 커버로 설계된"
+      compositionInstructions = "인상적인 비주얼과 타이포그래피 통합, 편집 레이아웃 원칙을 사용한 잡지 커버 구성으로"
       break
     case "bookmark":
-      layoutDescription = "designed as a decorative bookmark with vertical composition and elegant design elements"
-      compositionInstructions = "Create a vertical bookmark layout with decorative elements and space-efficient design"
+      layoutDescription = "세로 구성과 우아한 디자인 요소를 가진 장식적인 북마크로 설계된"
+      compositionInstructions = "장식적 요소와 공간 효율적인 디자인을 가진 세로형 북마크 레이아웃으로 만들어"
+      break
+    case "korea-job-world":
+      layoutDescription = ""
+      compositionInstructions = ""
       break
     case "custom":
       // 사용자 정의 레이아웃 데이터 파싱
       try {
         const customLayout = JSON.parse(customLayoutData || "{}")
         const bgColor = customLayout.bgColor || "#f3e8ff"
-        layoutDescription = `with a custom layout using ${bgColor} as the background color and user-specified design preferences`
-        compositionInstructions = `Apply custom layout with ${bgColor} background and personalized design elements`
+        layoutDescription = `${bgColor} 배경색과 사용자 지정 디자인 선호도를 사용한 맞춤형 레이아웃으로`
+        compositionInstructions = `${bgColor} 배경과 개인화된 디자인 요소를 가진 맞춤형 레이아웃을 적용하여`
       } catch (e) {
-        layoutDescription = "with a custom layout design tailored to user preferences"
-        compositionInstructions = "Create a personalized layout with unique design elements"
+        layoutDescription = "사용자 선호도에 맞춘 맞춤형 레이아웃 디자인으로"
+        compositionInstructions = "독특한 디자인 요소를 가진 개인화된 레이아웃을 만들어"
       }
       break
     default:
-      layoutDescription = "with a clean, professional layout that showcases the subject effectively"
-      compositionInstructions = "Use professional composition with balanced elements and clear focus on the subject"
+      layoutDescription = "주제를 효과적으로 보여주는 깔끔하고 전문적인 레이아웃으로"
+      compositionInstructions = "균형 잡힌 요소와 주제에 대한 명확한 초점을 가진 전문적인 구성을 사용하여"
   }
 
   // 최종 상세 프롬프트 조합 (gpt-image-1의 32,000자 한계 활용)
-  return `Transform this person into ${ageDescription} working as ${jobDescription}. 
+  return `이 사람을 ${ageDescription} ${jobDescription} 모습으로 변환해주세요.
 
-SETTING AND ENVIRONMENT: Place them ${environmentDescription}.
+환경 및 배경: ${environmentDescription} 배치해주세요.
 
-VISUAL STYLE: Render the image ${styleDescription}. ${renderingInstructions}
+시각적 스타일: ${styleDescription} 이미지로 렌더링해주세요. ${renderingInstructions} 렌더링해주세요.
 
-LAYOUT AND COMPOSITION: The final composition should be ${layoutDescription}. ${compositionInstructions}
+레이아웃 및 구성: 최종 구성은 ${layoutDescription} 형태여야 합니다. ${compositionInstructions} 구성해주세요.
 
-TECHNICAL REQUIREMENTS:
-- Create a high-quality, detailed image with professional lighting and composition
-- Maintain Korean aesthetic sensibilities and cultural appropriateness
-- Keep the person's facial features recognizable while transforming them into the specified profession
-- Use proper lighting that enhances the professional appearance
-- Ensure the background and environment support the overall narrative
-- Apply appropriate depth of field and visual hierarchy
-- Use colors that complement the professional context and chosen style
 
-QUALITY STANDARDS:
-- Professional photography or illustration quality
-- Sharp details and clear textures
-- Appropriate contrast and color balance
-- Emotionally engaging and inspirational presentation
-- Culturally sensitive and respectful representation
-
-The final image should inspire viewers and accurately represent the chosen profession while maintaining the person's identity and dignity
+최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 이쁘게 만들어줘 한국식 화장을 한 상태로 만들어줘야함 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 멋있는부분을 사용해서 멋있게 만들어줘
     `
 }

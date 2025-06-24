@@ -10,8 +10,14 @@ interface StyleStepProps {
 export function StyleStep({ updateSelection, currentStyle }: StyleStepProps) {
   const styles = [
     {
+      value: "realistic",
+      label: "일반 사진 스타일",
+      icon: "📷",
+      description: "자연스럽고 사실적인 사진 스타일",
+    },
+    {
       value: "cartoon",
-      label: "만화 카툰 ���타일",
+      label: "만화 카툰 스타일",
       icon: "🎨",
       description: "귀엽고 친근한 만화 캐릭터 스타일",
     },

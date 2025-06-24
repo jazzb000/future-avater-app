@@ -104,7 +104,22 @@ export default function TicketsPage() {
     <div className="max-w-4xl mx-auto p-4 md:p-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">티켓 구매</h1>
-        <p className="text-lg text-purple-500">미래의 나를 만들기 위한 티켓을 구매하세요</p>
+        <p className="text-lg text-purple-500">티켓 구매 기능은 현재 준비 중입니다</p>
+      </div>
+
+      <div className="bg-yellow-100 border-l-4 border-yellow-500 p-6 mb-8 rounded-lg">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm text-yellow-700">
+              <strong>준비 중인 기능입니다.</strong> 티켓 구매 시스템은 현재 개발 중이며, 곧 이용하실 수 있습니다.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="bg-purple-100 rounded-xl p-4 mb-8 flex items-center justify-between">
@@ -152,11 +167,10 @@ export default function TicketsPage() {
                 <p className="text-2xl font-bold text-purple-700">{pkg.price.toLocaleString()}원</p>
               </div>
               <Button
-                onClick={() => handlePurchase(pkg.id, pkg.ticket_count, pkg.price)}
-                disabled={purchasing === pkg.id}
-                className="w-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                disabled
+                className="w-full rounded-full bg-gray-400 text-white cursor-not-allowed opacity-50"
               >
-                {purchasing === pkg.id ? "처리 중..." : "구매하기"}
+                구매하기 (준비중)
               </Button>
             </CardFooter>
           </Card>

@@ -20,7 +20,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu } from "lucide-react"
+import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu, Sparkles } from "lucide-react"
 
 export function Navbar() {
   const { user, signOut } = useAuth()
@@ -36,15 +36,18 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto flex justify-between items-center">
         <div className="flex items-center space-x-6">
           <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-purple-600 font-display">미래의 나</span>
+            <span className="text-2xl font-bold text-purple-600 font-display">돌핀인캘리 AI</span>
           </Link>
 
           <div className="hidden md:flex space-x-4">
-            <Link href="/gallery" className="text-purple-600 hover:text-purple-800">
-              갤러리
+            <Link href="/future-me" className="text-purple-600 hover:text-purple-800">
+              미래의 나
             </Link>
             <Link href="/doodle-to-reality" className="text-teal-600 hover:text-teal-800">
               낙서 현실화
+            </Link>
+            <Link href="/gallery" className="text-gray-600 hover:text-gray-800">
+              갤러리
             </Link>
           </div>
         </div>
@@ -81,10 +84,10 @@ export function Navbar() {
                         <span>프로필</span>
                       </DropdownMenuItem>
                     </Link>
-                    <Link href="/gallery">
+                    <Link href="/future-me">
                       <DropdownMenuItem>
-                        <ImageIcon className="mr-2 h-4 w-4" />
-                        <span>갤러리</span>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        <span>미래의 나</span>
                       </DropdownMenuItem>
                     </Link>
                     <Link href="/doodle-to-reality">
@@ -93,12 +96,16 @@ export function Navbar() {
                         <span>낙서 현실화</span>
                       </DropdownMenuItem>
                     </Link>
-                    <Link href="/tickets">
+                    <Link href="/gallery">
                       <DropdownMenuItem>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        <span>티켓 구매</span>
+                        <ImageIcon className="mr-2 h-4 w-4" />
+                        <span>갤러리</span>
                       </DropdownMenuItem>
                     </Link>
+                    <DropdownMenuItem disabled className="cursor-not-allowed opacity-50">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>티켓 구매 (준비중)</span>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => signOut()}>
                       <LogOut className="mr-2 h-4 w-4" />
@@ -133,19 +140,19 @@ export function Navbar() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[400px]">
                 <SheetHeader>
-                  <SheetTitle className="text-purple-600 font-display">미래의 나</SheetTitle>
+                  <SheetTitle className="text-purple-600 font-display">돌핀인캘리 AI</SheetTitle>
                 </SheetHeader>
                 
                 <div className="flex flex-col gap-4 mt-6">
                   {/* 네비게이션 메뉴 */}
                   <div className="flex flex-col gap-3">
                     <Link 
-                      href="/gallery" 
+                      href="/future-me" 
                       className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 text-purple-600 hover:text-purple-800"
                       onClick={handleMobileMenuClose}
                     >
-                      <ImageIcon className="h-5 w-5" />
-                      <span className="font-medium">갤러리</span>
+                      <Sparkles className="h-5 w-5" />
+                      <span className="font-medium">미래의 나</span>
                     </Link>
                     
                     <Link 
@@ -155,6 +162,15 @@ export function Navbar() {
                     >
                       <Pencil className="h-5 w-5" />
                       <span className="font-medium">낙서 현실화</span>
+                    </Link>
+
+                    <Link 
+                      href="/gallery" 
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-gray-800"
+                      onClick={handleMobileMenuClose}
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                      <span className="font-medium">갤러리</span>
                     </Link>
                   </div>
 
@@ -189,40 +205,37 @@ export function Navbar() {
                           <span>프로필</span>
                         </Link>
 
-                        <Link 
-                          href="/tickets" 
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50"
-                          onClick={handleMobileMenuClose}
-                        >
+                        <div className="flex items-center gap-3 p-3 rounded-lg cursor-not-allowed opacity-50">
                           <CreditCard className="h-5 w-5 text-gray-600" />
-                          <span>티켓 구매</span>
-                        </Link>
+                          <span>티켓 구매 (준비중)</span>
+                        </div>
 
                         <button 
                           onClick={() => {
                             signOut()
                             handleMobileMenuClose()
                           }}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-red-600"
+                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left w-full"
                         >
-                          <LogOut className="h-5 w-5" />
+                          <LogOut className="h-5 w-5 text-gray-600" />
                           <span>로그아웃</span>
                         </button>
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3">
-                        <Link href="/login" onClick={handleMobileMenuClose}>
-                          <Button 
-                            variant="outline" 
-                            className="w-full rounded-full border-2 border-purple-300 hover:bg-purple-100"
-                          >
-                            로그인
-                          </Button>
+                        <Link 
+                          href="/login" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-purple-300 hover:bg-purple-50 text-purple-600"
+                          onClick={handleMobileMenuClose}
+                        >
+                          로그인
                         </Link>
-                        <Link href="/signup" onClick={handleMobileMenuClose}>
-                          <Button className="w-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
-                            회원가입
-                          </Button>
+                        <Link 
+                          href="/signup" 
+                          className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                          onClick={handleMobileMenuClose}
+                        >
+                          회원가입
                         </Link>
                       </div>
                     )}

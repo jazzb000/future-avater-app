@@ -131,6 +131,17 @@ export function Wizard() {
       setError(null)
 
       try {
+        console.log("🚀 API 요청 시작 (미래의 나):", {
+          timestamp: new Date().toISOString(),
+          userId: user.id.substring(0, 8) + "...",
+          hasPhoto: !!selections.photo,
+          photoType: selections.photo?.startsWith("data:") ? "base64" : "url"
+        })
+
+        // 타임아웃 설정 (5분)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 300000) // 5분 타임아웃
+
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: {
@@ -145,27 +156,74 @@ export function Wizard() {
             customLayoutData: selections.customLayoutData,
             userId: user.id,
           }),
+          signal: controller.signal, // 타임아웃 신호 추가
         })
+
+        clearTimeout(timeoutId) // 응답이 오면 타임아웃 해제
 
         if (!response.ok) {
           const errorData = await response.json()
+          console.error("❌ API 응답 에러:", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error
+          })
           throw new Error(errorData.error || "이미지 생성 요청에 실패했습니다")
         }
 
         const data = await response.json()
 
+        console.log("📥 API 응답 수신 (미래의 나):", {
+          success: data.success,
+          hasImageUrl: !!data.imageUrl,
+          imageUrl: data.imageUrl?.substring(0, 100) + "...",
+          isBase64: data.imageUrl?.startsWith("data:"),
+          debug: data.debug,
+          timestamp: new Date().toISOString()
+        })
+
         if (data.success) {
+          console.log("✅ 이미지 생성 성공, 상태 업데이트 중...")
           setGeneratedImageId(data.imageId)
           setGeneratedImage(data.imageUrl)
           setIsGenerating(false)
           refreshTickets && refreshTickets()
+          
+          // 이미지 URL 유효성 검증
+          if (data.imageUrl) {
+            const img = new Image()
+            img.onload = () => {
+              console.log("✅ 응답 이미지 URL 유효성 확인 완료")
+            }
+            img.onerror = (error) => {
+              console.error("❌ 응답 이미지 URL 유효성 검증 실패:", error)
+            }
+            img.src = data.imageUrl
+          }
         } else {
+          console.error("❌ API 응답 에러:", data.error)
           setError(data.error || "이미지 생성에 실패했습니다.")
           setIsGenerating(false)
         }
       } catch (error: any) {
-        console.error("이미지 생성 요청 중 오류:", error)
-        setError(`이미지 생성 중 오류가 발생했습니다: ${error.message || ""}`)
+        console.error("❌ 이미지 생성 요청 중 오류 (미래의 나):", {
+          error: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 500),
+          timestamp: new Date().toISOString()
+        })
+        
+        let errorMessage = "이미지 생성 중 오류가 발생했습니다"
+        
+        if (error.name === 'AbortError') {
+          errorMessage = "요청이 시간 초과되었습니다. 네트워크 연결을 확인하고 다시 시도해주세요."
+        } else if (error.message?.includes("네트워크") || error.message?.includes("network")) {
+          errorMessage = "네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인해주세요."
+        } else if (error.message) {
+          errorMessage = `${error.message}`
+        }
+        
+        setError(errorMessage)
         setIsGenerating(false)
       }
     } else {
@@ -203,15 +261,14 @@ export function Wizard() {
           <p className="text-sm text-purple-700">
             <span className="font-medium">남은 티켓:</span> {remainingTickets}개
           </p>
-          <Link href="/tickets">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs h-7 rounded-full border-purple-300 hover:bg-purple-200"
-            >
-              티켓 구매
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs h-7 rounded-full border-gray-300 hover:bg-gray-200 cursor-not-allowed opacity-50"
+            disabled
+          >
+            티켓 구매 (준비중)
+          </Button>
         </div>
       )}
 
@@ -231,14 +288,13 @@ export function Wizard() {
               <p className="text-sm text-red-700">{error}</p>
               {error.includes("티켓") && (
                 <div className="mt-2">
-                  <Link href="/tickets">
-                    <Button
-                      size="sm"
-                      className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-xs"
-                    >
-                      티켓 구매하기
-                    </Button>
-                  </Link>
+                  <Button
+                    size="sm"
+                    className="rounded-full bg-gray-400 text-white text-xs cursor-not-allowed opacity-50"
+                    disabled
+                  >
+                    티켓 구매하기 (준비중)
+                  </Button>
                 </div>
               )}
             </div>

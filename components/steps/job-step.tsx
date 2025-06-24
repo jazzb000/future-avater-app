@@ -17,6 +17,7 @@ export function JobStep({ updateSelection, currentJob }: JobStepProps) {
     { value: "scientist", label: "과학자", icon: "👩‍🔬" },
     { value: "artist", label: "예술가", icon: "👨‍🎨" },
     { value: "athlete", label: "운동선수", icon: "🏃‍♀️" },
+    { value: "announcer", label: "아나운서", icon: "📺" },
   ]
 
   return (

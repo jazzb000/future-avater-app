@@ -43,16 +43,48 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
   // 탭 변경 시 카메라 활성화/비활성화
   useEffect(() => {
     if (activeTab === "camera") {
-      startCamera()
+      // 탭이 변경되자마자 즉시 카메라 시작
+      setTimeout(() => {
+        startCamera()
+      }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
     } else {
       stopCameraStream()
     }
   }, [activeTab])
 
+  // activeTab이 변경될 때마다 강제로 카메라 상태 초기화
+  const handleTabChange = (value: string) => {
+    console.log(`탭 변경: ${activeTab} -> ${value}`)
+    setActiveTab(value)
+    
+    if (value === "camera") {
+      // 이전 스트림이 있다면 정리
+      stopCameraStream()
+      // 새로운 카메라 시작
+      setTimeout(() => {
+        console.log("카메라 탭 선택됨 - 카메라 시작 시도")
+        startCamera()
+      }, 200)
+    }
+  }
+
   // 카메라 시작 함수
   const startCamera = async () => {
     try {
+      console.log("카메라 시작 함수 호출됨")
       setError(null)
+      
+      // 이미 카메라가 활성화되어 있다면 종료
+      if (cameraStream) {
+        console.log("기존 카메라 스트림 정리 중...")
+        stopCameraStream()
+        // 잠시 대기 후 새로 시작
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+      
+      // 권한 확인
+      const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName })
+      console.log("카메라 권한 상태:", permissionStatus.state)
       
       // 모바일과 데스크톱 환경에 따른 카메라 설정
       const constraints = {
@@ -65,7 +97,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         }
       }
 
+      console.log("카메라 스트림 요청 중...")
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      console.log("카메라 스트림 획득 성공")
 
       setCameraStream(stream)
       setIsCameraActive(true)
@@ -84,6 +118,14 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         // 비디오가 재생 가능한 상태가 되면 이벤트 리스너 추가
         videoRef.current.oncanplay = () => {
           console.log("비디오 재생 준비 완료")
+        }
+
+        // 비디오 재생 강제 실행
+        try {
+          await videoRef.current.play()
+          console.log("비디오 재생 시작됨")
+        } catch (playError) {
+          console.log("비디오 자동 재생 실패 (사용자 상호작용 필요):", playError)
         }
       }
     } catch (err) {
@@ -237,7 +279,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           </Button>
         </div>
       ) : (
-        <Tabs defaultValue="upload" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs defaultValue="upload" value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid grid-cols-2 mb-4 bg-purple-100">
             <TabsTrigger value="upload" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
               사진 올리기

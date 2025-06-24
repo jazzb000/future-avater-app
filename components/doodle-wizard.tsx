@@ -105,6 +105,18 @@ export function DoodleWizard() {
       setError(null)
 
       try {
+        console.log("🚀 API 요청 시작 (낙서현실화):", {
+          timestamp: new Date().toISOString(),
+          userId: user.id.substring(0, 8) + "...",
+          hasDoodle: !!selections.doodle,
+          doodleType: selections.doodle?.startsWith("data:") ? "base64" : "url",
+          style: selections.style
+        })
+
+        // 타임아웃 설정 (5분)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 300000) // 5분 타임아웃
+
         const response = await fetch("/api/doodle-to-reality", {
           method: "POST",
           headers: {
@@ -115,19 +127,71 @@ export function DoodleWizard() {
             style: selections.style,
             userId: user.id,
           }),
+          signal: controller.signal, // 타임아웃 신호 추가
         })
+
+        clearTimeout(timeoutId) // 응답이 오면 타임아웃 해제
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error("❌ API 응답 에러 (낙서현실화):", {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error
+          })
+          throw new Error(errorData.error || "이미지 생성 요청에 실패했습니다")
+        }
 
         const data = await response.json()
 
+        console.log("📥 API 응답 수신 (낙서현실화):", {
+          success: data.success,
+          hasImageUrl: !!data.imageUrl,
+          imageUrl: data.imageUrl?.substring(0, 100) + "...",
+          isBase64: data.imageUrl?.startsWith("data:"),
+          debug: data.debug,
+          timestamp: new Date().toISOString()
+        })
+
         if (data.success) {
+          console.log("✅ 낙서현실화 성공, 상태 업데이트 중...")
           setGeneratedImage(data.imageUrl)
           setGeneratedImageId(data.imageId)
+          
+          // 이미지 URL 유효성 검증
+          if (data.imageUrl) {
+            const img = new Image()
+            img.onload = () => {
+              console.log("✅ 응답 이미지 URL 유효성 확인 완료 (낙서현실화)")
+            }
+            img.onerror = (error) => {
+              console.error("❌ 응답 이미지 URL 유효성 검증 실패 (낙서현실화):", error)
+            }
+            img.src = data.imageUrl
+          }
         } else {
+          console.error("❌ API 응답 에러 (낙서현실화):", data.error)
           setError(data.error || "이미지 생성에 실패했습니다.")
         }
-      } catch (error) {
-        console.error("이미지 생성 중 오류:", error)
-        setError("이미지 생성 중 오류가 발생했습니다.")
+      } catch (error: any) {
+        console.error("❌ 이미지 생성 중 오류 (낙서현실화):", {
+          error: error.message,
+          name: error.name,
+          stack: error.stack?.substring(0, 500),
+          timestamp: new Date().toISOString()
+        })
+        
+        let errorMessage = "이미지 생성 중 오류가 발생했습니다"
+        
+        if (error.name === 'AbortError') {
+          errorMessage = "요청이 시간 초과되었습니다. 네트워크 연결을 확인하고 다시 시도해주세요."
+        } else if (error.message?.includes("네트워크") || error.message?.includes("network")) {
+          errorMessage = "네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인해주세요."
+        } else if (error.message) {
+          errorMessage = `${error.message}`
+        }
+        
+        setError(errorMessage)
       } finally {
         setIsGenerating(false)
       }
@@ -160,11 +224,14 @@ export function DoodleWizard() {
           <p className="text-sm text-teal-700">
             <span className="font-medium">남은 티켓:</span> {remainingTickets}개
           </p>
-          <Link href="/tickets">
-            <Button variant="outline" size="sm" className="text-xs h-7 rounded-full border-teal-300 hover:bg-teal-200">
-              티켓 구매
-            </Button>
-          </Link>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs h-7 rounded-full border-gray-300 hover:bg-gray-200 cursor-not-allowed opacity-50"
+            disabled
+          >
+            티켓 구매 (준비중)
+          </Button>
         </div>
       )}
 
@@ -182,18 +249,17 @@ export function DoodleWizard() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
-              {error.includes("티켓") && (
-                <div className="mt-2">
-                  <Link href="/tickets">
-                    <Button
-                      size="sm"
-                      className="rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white text-xs"
-                    >
-                      티켓 구매하기
-                    </Button>
-                  </Link>
-                </div>
-              )}
+                          {error.includes("티켓") && (
+              <div className="mt-2">
+                <Button
+                  size="sm"
+                  className="rounded-full bg-gray-400 text-white text-xs cursor-not-allowed opacity-50"
+                  disabled
+                >
+                  티켓 구매하기 (준비중)
+                </Button>
+              </div>
+            )}
             </div>
           </div>
         </div>

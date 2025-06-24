@@ -139,6 +139,28 @@ export function LayoutStep({ updateSelection, currentLayout }: LayoutStepProps) 
       ),
     },
     {
+      value: "korea-job-world",
+      label: "한국잡월드 레이아웃",
+      description: "한국잡월드 공식 로고가 포함됩니다",
+      preview: (
+        <div className="w-full h-32 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg p-3 border-2 border-green-300 shadow-sm">
+          <div className="h-full flex flex-col relative">
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-green-200 border-2 border-green-400 flex items-center justify-center">
+                <span className="text-2xl">👨‍💼</span>
+              </div>
+            </div>
+            <div className="absolute bottom-1 right-1">
+              <div className="w-8 h-6 bg-green-400 rounded-sm flex items-center justify-center">
+                <span className="text-xs font-bold text-white">로고</span>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      ),
+    },
+    {
       value: "custom",
       label: "직접 디자인하기",
       description: "나만의 레이아웃을 직접 만들어보세요",

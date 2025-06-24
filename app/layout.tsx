@@ -12,12 +12,12 @@ const inter = Inter({ subsets: ["latin"] })
 const gaegu = Gaegu({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-display" })
 
 export const metadata: Metadata = {
-  title: "Future Avatar",
-  description: "AI로 생성하는 미래의 나",
+  title: "돌핀인캘리 AI",
+  description: "AI로 상상하는 미래와 창작하는 현실을 경험해보세요",
   icons: {
     icon: "/favicon.ico",
   },
-  generator: 'v0.dev'
+  generator: 'dolphinincali'
 }
 
 export default function RootLayout({

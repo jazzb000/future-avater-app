@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Loader2, Download, Share2, Globe, RefreshCw, Maximize2 } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
@@ -31,6 +32,8 @@ export function ResultStep({
   const [isSaving, setIsSaving] = useState(false)
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null)
+  const [imageLoadError, setImageLoadError] = useState<string | null>(null)
+  const [imageLoadAttempts, setImageLoadAttempts] = useState(0)
   
   // 실시간 이미지 상태 추적
   const { status: imageStatus, loading: statusLoading, error: statusError } = useDoodleStatus(imageId || null)
@@ -41,14 +44,66 @@ export function ResultStep({
   useEffect(() => {
     if (imageStatus) {
       if (imageStatus.status === "completed" && imageStatus.imageUrl) {
+        console.log("🖼️ 새 이미지 수신 (낙서현실화):", { 
+          imageUrl: imageStatus.imageUrl.substring(0, 100) + "...",
+          isBase64: imageStatus.imageUrl.startsWith("data:"),
+          timestamp: new Date().toISOString()
+        })
         setLocalGeneratedImage(imageStatus.imageUrl)
         setGeneratedImage && setGeneratedImage(imageStatus.imageUrl)
         setIsLoading && setIsLoading(false)
+        setImageLoadError(null)
+        setImageLoadAttempts(0)
       } else if (imageStatus.status === "error") {
         setIsLoading && setIsLoading(false)
       }
     }
   }, [imageStatus, setGeneratedImage, setIsLoading])
+
+  // 이미지 로딩 에러 핸들러
+  const handleImageError = (error: any) => {
+    const attemptCount = imageLoadAttempts + 1
+    setImageLoadAttempts(attemptCount)
+    
+    console.error("❌ 이미지 로딩 실패 (낙서현실화):", {
+      error: error.message || error,
+      imageUrl: generatedImage?.substring(0, 100) + "...",
+      attempt: attemptCount,
+      timestamp: new Date().toISOString()
+    })
+    
+    if (attemptCount < 3) {
+      // 3번까지 재시도
+      setTimeout(() => {
+        console.log(`🔄 이미지 로딩 재시도 (${attemptCount}/3)`)
+        setImageLoadError(null)
+        // 이미지 요소 강제 리로드
+        const img = new Image()
+        img.onload = () => {
+          console.log("✅ 재시도 성공")
+          setImageLoadError(null)
+        }
+        img.onerror = () => {
+          setImageLoadError(`이미지 로딩 실패 (시도 ${attemptCount}/3)`)
+        }
+        if (generatedImage) {
+          img.src = generatedImage
+        }
+      }, 1000 * attemptCount) // 지수적 백오프
+    } else {
+      setImageLoadError("이미지를 로딩할 수 없습니다. 새로고침을 시도해주세요.")
+    }
+  }
+
+  // 이미지 로딩 성공 핸들러
+  const handleImageLoad = () => {
+    console.log("✅ 이미지 로딩 성공 (낙서현실화):", {
+      imageUrl: generatedImage?.substring(0, 100) + "...",
+      timestamp: new Date().toISOString()
+    })
+    setImageLoadError(null)
+    setImageLoadAttempts(0)
+  }
 
   const handleDownload = () => {
     if (generatedImage) {
@@ -236,19 +291,57 @@ export function ResultStep({
             <div className="relative max-w-md overflow-hidden rounded-2xl shadow-lg border-4 border-purple-300 bg-gray-900">
               <div className="absolute -top-4 -right-4 w-12 h-12 bg-yellow-300 rounded-full opacity-70 z-10"></div>
               <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-pink-300 rounded-full opacity-70 z-10"></div>
-              <div className="w-full h-[300px] overflow-hidden cursor-pointer group relative z-0" onClick={() => handleImageClick(generatedImage)}>
-                <img
-                  src={generatedImage || "/placeholder.svg"} 
-                  alt="현실화된 이미지"
-                  className="w-full h-full object-contain transition-transform group-hover:scale-105" 
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                  <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </div>
+              <div className="w-full h-[300px] overflow-hidden cursor-pointer group relative z-0" onClick={() => !imageLoadError && handleImageClick(generatedImage)}>
+                {imageLoadError ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
+                    <div className="text-center p-4">
+                      <p className="text-sm mb-2">⚠️ 이미지 로딩 오류</p>
+                      <p className="text-xs mb-4">{imageLoadError}</p>
+                      <Button
+                        onClick={() => {
+                          setImageLoadError(null)
+                          setImageLoadAttempts(0)
+                          handleManualRefresh()
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                      >
+                        다시 시도
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <img
+                      src={generatedImage || "/placeholder.svg"} 
+                      alt="현실화된 이미지"
+                      className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                      onLoad={handleImageLoad}
+                      onError={(e) => handleImageError(e)}
+                      style={{ 
+                        opacity: imageLoadAttempts > 0 ? 0.7 : 1,
+                        transition: 'opacity 0.3s ease'
+                      }}
+                    />
+                    {imageLoadAttempts > 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="text-white text-center">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                          <p className="text-xs">재시도 중... ({imageLoadAttempts}/3)</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                      <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    </div>
+                  </>
+                )}
               </div>
               <div className="absolute top-2 left-2 bg-purple-500 text-white px-2 py-1 rounded-full text-xs">
                 현실화된 이미지
               </div>
+
             </div>
           </div>
 
@@ -286,17 +379,28 @@ export function ResultStep({
         </div>
       )}
 
-      {/* 전체화면 모달 */}
-      {showFullscreen && fullscreenImage && (
+      {/* 전체화면 모달 - Portal로 body에 직접 렌더링 */}
+      {showFullscreen && fullscreenImage && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-70 z-[9999] flex items-center justify-center p-4"
           onClick={handleCloseFullscreen}
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            margin: 0,
+            padding: 0
+          }}
         >
-          <div className="relative max-w-full max-h-full">
+          <div className="relative max-w-[80vw] max-h-[90vh] w-auto h-auto">
             <img
               src={fullscreenImage}
               alt="전체화면 이미지"
-              className="max-w-full max-h-full object-contain"
+              className="w-full h-full object-contain rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
             <Button
@@ -308,7 +412,8 @@ export function ResultStep({
               ✕
             </Button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

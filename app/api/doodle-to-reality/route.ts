@@ -84,26 +84,29 @@ export async function POST(req: Request) {
     console.log("🎭 스타일 프롬프트 생성 중...")
     let stylePrompt = ""
     switch (style) {
+      case "photo":
+        stylePrompt = "이 간단한 낙서를 실제 카메라로 찍은 것 같은 자연스럽고 사진적인 이미지로 변환해주세요. 자연스러운 조명과 사실적인 비율, 진정한 사진적 특성을 사용해주세요. 진짜 사진처럼 보이게 만들어주세요."
+        break
       case "realistic":
-        stylePrompt = "Transform this simple doodle into a highly detailed, photorealistic image. Maintain the core concept and composition while adding realistic textures, lighting, shadows, and fine details. Make it look like a professional photograph."
+        stylePrompt = "이 간단한 낙서를 매우 상세하고 사진처럼 사실적인 이미지로 변환해주세요. 핵심 개념과 구성을 유지하면서 사실적인 질감, 조명, 그림자, 세밀한 디테일을 추가해주세요. 전문적인 사진처럼 보이게 만들어주세요."
         break
       case "cartoon":
-        stylePrompt = "Transform this doodle into a vibrant, cute cartoon illustration with smooth lines, bright colors, and appealing character design. Add expressive features and make it look like a professional animation still."
+        stylePrompt = "이 낙서를 부드러운 선과 밝은 색상, 매력적인 캐릭터 디자인을 가진 생동감 넘치고 귀여운 만화 일러스트로 변환해주세요. 표현력 있는 특징을 추가하고 전문 애니메이션 스틸처럼 보이게 만들어주세요."
         break
       case "3d":
-        stylePrompt = "Transform this doodle into a high-quality 3D rendered model with realistic materials, proper lighting, shadows, and depth. Make it look like a professional 3D visualization with smooth surfaces and accurate proportions."
+        stylePrompt = "이 낙서를 사실적인 재질과 적절한 조명, 그림자, 깊이감을 가진 고품질 3D 렌더링 모델로 변환해주세요. 매끄러운 표면과 정확한 비율을 가진 전문적인 3D 시각화처럼 보이게 만들어주세요."
         break
       case "painting":
-        stylePrompt = "Transform this doodle into a beautiful oil painting with visible brush strokes, rich color palette, and artistic composition. Add texture and depth while maintaining the original concept in a painterly style."
+        stylePrompt = "이 낙서를 보이는 붓터치와 풍부한 색상 팔레트, 예술적인 구성을 가진 아름다운 유화로 변환해주세요. 회화적 스타일로 원래 개념을 유지하면서 질감과 깊이를 추가해주세요."
         break
       case "digital-art":
-        stylePrompt = "Transform this doodle into modern digital artwork with clean lines, vibrant colors, and professional finish. Use contemporary digital art techniques with smooth gradients and polished appearance."
+        stylePrompt = "이 낙서를 깔끔한 선과 생동감 있는 색상, 전문적인 마감을 가진 현대적인 디지털 아트워크로 변환해주세요. 부드러운 그라데이션과 세련된 외관을 가진 현대적 디지털 아트 기법을 사용해주세요."
         break
       case "sketch":
-        stylePrompt = "Transform this doodle into a refined, detailed pencil sketch with proper shading, texture, and artistic technique. Make it look like a professional illustration with clean lines and depth."
+        stylePrompt = "이 낙서를 적절한 음영과 질감, 예술적 기법을 가진 세련되고 상세한 연필 스케치로 변환해주세요. 깔끔한 선과 깊이감을 가진 전문적인 일러스트레이션처럼 보이게 만들어주세요."
         break
       default:
-        stylePrompt = "Transform this doodle into a detailed and refined image with professional quality, maintaining the original concept while enhancing it with proper composition and visual appeal."
+        stylePrompt = "이 낙서를 전문적인 품질로 상세하고 세련된 이미지로 변환해주세요. 적절한 구성과 시각적 매력으로 향상시키면서 원래 개념을 유지해주세요."
     }
 
     console.log("✅ 프롬프트 생성 완료:", { style, promptLength: stylePrompt.length })
@@ -128,7 +131,7 @@ export async function POST(req: Request) {
       prompt: stylePrompt,
       n: 1,
       size: "1536x1024",
-      quality: "medium",
+      quality: "high", // 최고 품질로 변경
       output_format: "png",
       background: "auto",
     })
@@ -230,11 +233,24 @@ export async function POST(req: Request) {
     console.log("✅ 데이터베이스 저장 완료:", { imageId: savedImageData.id })
 
     // 생성된 이미지 URL과 ID 반환
-    console.log("🎉 낙서 현실화 완료!")
+    console.log("🎉 낙서 현실화 완료!", {
+      imageId: savedImageData.id,
+      imageUrl: finalImageUrl.substring(0, 100) + "...",
+      isBase64: finalImageUrl.startsWith("data:"),
+      urlLength: finalImageUrl.length,
+      timestamp: new Date().toISOString()
+    })
+    
     return NextResponse.json({
       success: true,
       imageUrl: finalImageUrl,
       imageId: savedImageData.id,
+      debug: {
+        timestamp: new Date().toISOString(),
+        isBase64: finalImageUrl.startsWith("data:"),
+        urlLength: finalImageUrl.length,
+        urlPreview: finalImageUrl.substring(0, 100) + "..."
+      }
     })
   } catch (error) {
     console.error("❌ 낙서 현실화 중 오류:", error)
