@@ -41,7 +41,7 @@ export function Navbar() {
 
           <div className="hidden md:flex space-x-4">
             <Link href="/future-me" className="text-purple-600 hover:text-purple-800">
-              미래의 나
+              시간버스
             </Link>
             <Link href="/doodle-to-reality" className="text-teal-600 hover:text-teal-800">
               낙서 현실화
@@ -87,7 +87,7 @@ export function Navbar() {
                     <Link href="/future-me">
                       <DropdownMenuItem>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        <span>미래의 나</span>
+                        <span>시간버스</span>
                       </DropdownMenuItem>
                     </Link>
                     <Link href="/doodle-to-reality">
@@ -152,7 +152,7 @@ export function Navbar() {
                       onClick={handleMobileMenuClose}
                     >
                       <Sparkles className="h-5 w-5" />
-                      <span className="font-medium">미래의 나</span>
+                      <span className="font-medium">시간버스</span>
                     </Link>
                     
                     <Link 

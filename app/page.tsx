@@ -26,16 +26,16 @@ export default function Home() {
                 <Sparkles className="h-8 w-8 text-white" />
               </div>
               <CardTitle className="text-2xl font-bold text-purple-600 font-display">
-                미래의 나
+                시간버스
               </CardTitle>
               <CardDescription className="text-gray-600">
-                내가 커서 되고 싶은 직업을 상상해보세요!
+                다양한 나이의 나를 만나보세요!
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-gray-700 mb-6">
-                AI가 당신의 사진을 분석하여 미래의 직업인으로 변환해드립니다. 
-                꿈꿔왔던 직업에서의 모습을 미리 확인해보세요!
+                AI가 당신의 사진을 분석하여 다양한 나이의 모습으로 변환해드립니다. 
+                2살부터 10대까지, 성인도 가능합니다!
               </p>
               <Link href="/future-me">
                 <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full group-hover:scale-105 transition-transform duration-300">

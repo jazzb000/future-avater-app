@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { Loader2, Download, Share2, Globe, RefreshCw, Maximize2 } from "lucide-react"
+import { Loader2, Download, Share2, Globe, RefreshCw, Maximize2, QrCode } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
+import { QRCodeSVG } from "qrcode.react"
 
 interface ResultStepProps {
   image: string | null
@@ -113,7 +114,7 @@ export function ResultStep({
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement("a")
             link.href = url
-            link.download = "미래의-나.png"
+            link.download = "시간버스.png"
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
@@ -145,7 +146,7 @@ export function ResultStep({
         const file = new File([blob], "미래의-나.png", { type: "image/png" })
 
         await navigator.share({
-          title: "미래의 나",
+          title: "시간버스",
           text: "내 미래 직업을 확인해보세요!",
           files: [file],
         })
@@ -211,7 +212,7 @@ export function ResultStep({
               <div className="w-8 h-8 bg-pink-300 rounded-full opacity-30 animate-ping"></div>
             </div>
           </div>
-          <p className="text-lg font-medium text-purple-600">미래의 나를 만들고 있어요...</p>
+                      <p className="text-lg font-medium text-purple-600">시간버스가 이동중이에요...</p>
           <p className="text-purple-400 text-sm mt-2">백그라운드에서 처리 중입니다. 실시간으로 업데이트됩니다!</p>
 
           <Button
@@ -273,7 +274,7 @@ export function ResultStep({
                   <>
                     <img 
                       src={generatedImage || "/placeholder.svg"} 
-                      alt="미래의 나" 
+                      alt="시간버스" 
                       className="w-full h-full object-contain transition-transform group-hover:scale-105"
                       onLoad={handleImageLoad}
                       onError={(e) => handleImageError(e)}
@@ -297,7 +298,7 @@ export function ResultStep({
                 )}
               </div>
               <div className="absolute top-2 left-2 bg-purple-500 text-white px-2 py-1 rounded-full text-xs">
-                미래의 나
+                시간버스
               </div>
 
             </div>
@@ -314,6 +315,27 @@ export function ResultStep({
               </div>
             </div>
           )}
+
+          {/* QR코드 섹션 */}
+          <div className="flex justify-center mt-6">
+            <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-sm">
+              <div className="text-center mb-3">
+                <QrCode className="h-5 w-5 text-purple-600 mx-auto mb-1" />
+                <p className="text-sm font-medium text-purple-700">QR코드로 이미지 저장</p>
+                <p className="text-xs text-purple-500">스캔하면 바로 저장할 수 있어요!</p>
+              </div>
+              {generatedImage && (
+                <QRCodeSVG
+                  value={generatedImage}
+                  size={120}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="M"
+                  includeMargin={true}
+                />
+              )}
+            </div>
+          </div>
 
           <div className="flex justify-center space-x-4 mt-6">
             <Button

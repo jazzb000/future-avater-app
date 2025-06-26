@@ -5,6 +5,7 @@ import sharp from "sharp"
 import fs from "fs/promises"
 import path from "path"
 
+
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -259,6 +260,8 @@ export async function POST(req: Request) {
 
 // 이미지 생성 함수
 // 한국잡월드 로고 합성 함수
+
+
 async function addBusinessCardLayout(imageBuffer: Buffer, name: string, job: string): Promise<Buffer> {
   try {
     console.log("💼 명함 레이아웃 합성 시작:", { name, job })
@@ -670,34 +673,56 @@ async function processImageGeneration(
 function generatePrompt(age: string, job: string, style: string, layout: string, customLayoutData?: string): string {
   // 나이에 따른 특성 정의
   let ageDescription = ""
+  let faceAdjustment = ""
   switch (age) {
+    case "2years":
+      ageDescription = "2살 아기"
+      faceAdjustment = ""
+      break
+    case "5years":
+      ageDescription = "5살 어린이"
+      faceAdjustment = ""
+      break
+    case "teen":
+      ageDescription = "10대 청소년"
+      faceAdjustment = ""
+      break
     case "20s":
       ageDescription = "20대"
+      faceAdjustment = ""
       break
     case "30s":
       ageDescription = "30대"
+      faceAdjustment = ""
       break
     case "40s":
       ageDescription = "40대"
+      faceAdjustment = ""
       break
-    case "50s":
-      ageDescription = "50대"
+    case "60s":
+      ageDescription = "60대"
+      faceAdjustment = ""
       break
     default:
-      ageDescription = "적절한 연령대 특성을 가진 한국인 전문직"
+      ageDescription = "적절한 연령대 특성을 가진 한국인"
+      faceAdjustment = "자연스러운 얼굴 비율과 표정으로"
   }
 
   // 직업에 따른 상세한 특성 정의
   let jobDescription = ""
   let environmentDescription = ""
   switch (job) {
+    case "none":
+      jobDescription = "자연스러운 모습으로"
+      environmentDescription = "편안하고 자연스러운 배경에서"
+      break
     case "doctor":
       jobDescription = "의사"
       environmentDescription = "사진 배경이나 소품들이 의사 느낌나 보이는 얼굴 이미지를 해치지 않는 선에서"
       break
     case "teacher":
       jobDescription = "선생님"
-      environmentDescription = "교육 자료를 들거나 따뜻하고 영감을 주는 표정의 교사 등 교사 느낌이 나는 소품들을 활용 얼굴 이미지를 해치지 않는 선에서"
+      environmentDescription = "교사 느낌이 나는 소품들을 활용 얼굴 이미지를 해치지 않는 선에서"
       break
     case "astronaut":
       jobDescription = "우주비행사"
@@ -709,18 +734,18 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
       break
     case "firefighter":
       jobDescription = "소방관"
-      environmentDescription = "소방차나 응급 현장 근처에서 전문 소방 장비와 안전 장비가 있는 곳에서 얼굴 이미지를 해치지 않는 선에서"
+      environmentDescription = "소방차나 응급 현장 근처에서 전문 소방 장비와 안전 장비가 있는 곳에서"
       break
     case "scientist":
       jobDescription = "과학자"
       environmentDescription = ""
       break
     case "artist":
-      jobDescription = "창의적이고 물감이 묻을 수 있는 옷을 입고 붓이나 예술 도구를 들고, 상상력이 풍부하고 표현력이 뛰어난 모습의 예술가로"
-      environmentDescription = "아트 스튜디오에서 얼굴 이미지를 해치지 않는 선에서"
+      jobDescription = "상상력이 풍부하고 표현력이 뛰어난 모습의 예술가로"
+      environmentDescription = "아트 스튜디오에서"
       break
     case "athlete":
-      jobDescription = "해당 종목에 적합한 스포츠 복장을 입고 최상의 신체 조건을 갖추고, 결단력 있고 집중된 표정의 전문 운동선수로"
+      jobDescription = "운동선수로"
       environmentDescription = "관련 장비와 운동 기구가 있는 스포츠 시설이나 훈련 환경에서"
       break
     case "announcer":
@@ -820,6 +845,8 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
 레이아웃 및 구성: 최종 구성은 ${layoutDescription} 형태여야 합니다. ${compositionInstructions} 구성해주세요.
 
 
-최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 얼굴특성에 맞게 이쁘게 만들어줘 한국식 화장을 한 상태로 만들어줘야함 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 멋있는부분을 사용해서 멋있게 만들어줘
-    `
+최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 
+얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 얼굴특성에 맞게 이쁘게 만들어줘 
+한국식 화장을 한 상태로 만들어줘야함 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 
+멋있는부분을 사용해서 얼굴특성에 맞게 멋있게 만들어줘`
 }

@@ -9,6 +9,7 @@ interface JobStepProps {
 
 export function JobStep({ updateSelection, currentJob }: JobStepProps) {
   const jobs = [
+    { value: "none", label: "직업 없음", icon: "😊" },
     { value: "doctor", label: "의사", icon: "👨‍⚕️" },
     { value: "teacher", label: "선생님", icon: "👩‍🏫" },
     { value: "astronaut", label: "우주비행사", icon: "👨‍🚀" },
@@ -22,7 +23,7 @@ export function JobStep({ updateSelection, currentJob }: JobStepProps) {
 
   return (
     <div className="space-y-4">
-      <p className="text-purple-500 font-medium">미래에 어떤 직업을 갖고 싶나요?</p>
+      <p className="text-purple-500 font-medium">어떤 직업으로 변신하고 싶나요?</p>
 
       <RadioGroup
         value={currentJob || ""}

@@ -9,15 +9,18 @@ interface AgeStepProps {
 
 export function AgeStep({ updateSelection, currentAge }: AgeStepProps) {
   const ages = [
+    { value: "2years", label: "2살", icon: "👶" },
+    { value: "5years", label: "5살", icon: "🧒" },
+    { value: "teen", label: "10대", icon: "🧑‍🎓" },
     { value: "20s", label: "20대", icon: "👩‍🎓" },
     { value: "30s", label: "30대", icon: "👨‍💼" },
     { value: "40s", label: "40대", icon: "👩‍💼" },
-    { value: "50s", label: "50대", icon: "👨‍🔬" },
+    { value: "60s", label: "60대", icon: "👨‍🔬" },
   ]
 
   return (
     <div className="space-y-4">
-      <p className="text-purple-500 font-medium">미래의 직업에서 몇 살이 되고 싶나요?</p>
+      <p className="text-purple-500 font-medium">시간버스를 타고 몇 살로 가고 싶나요?</p>
 
       <RadioGroup
         value={currentAge || ""}

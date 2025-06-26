@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin, uploadImageToStorage, base64ToBuffer, generateUniqueFileName } from "@/lib/supabase"
 import OpenAI from "openai"
+import sharp from "sharp"
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+
 
 export async function POST(req: Request) {
   try {
@@ -123,15 +126,15 @@ export async function POST(req: Request) {
 
     // OpenAI API를 사용하여 이미지 생성
     console.log("🤖 OpenAI API 호출 시작...")
-    console.log("📋 API 설정:", { model: "gpt-image-1", size: "1536x1024", quality: "medium" })
-    
+    console.log("📋 API 설정:", { model: "gpt-image-1", size: "1536x1024", quality: "low" })
+
     const result = await openai.images.edit({
       model: "gpt-image-1",
       image: imageFile,
       prompt: stylePrompt,
       n: 1,
       size: "1536x1024",
-      quality: "high", // 최고 품질로 변경
+      quality: "low", // 최고 품질로 변경
       output_format: "png",
       background: "auto",
     })

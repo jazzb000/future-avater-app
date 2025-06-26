@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { Loader2, Download, Share2, Globe, RefreshCw, Maximize2 } from "lucide-react"
+import { Loader2, Download, Share2, Globe, RefreshCw, Maximize2, QrCode } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
 import { useDoodleStatus } from "@/hooks/use-doodle-status"
+import { QRCodeSVG } from "qrcode.react"
 
 interface ResultStepProps {
   image: string | null
@@ -310,10 +311,10 @@ export function ResultStep({
                   </div>
                 ) : (
                   <>
-                    <img
-                      src={generatedImage || "/placeholder.svg"} 
-                      alt="현실화된 이미지"
-                      className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                <img
+                  src={generatedImage || "/placeholder.svg"} 
+                  alt="현실화된 이미지"
+                  className="w-full h-full object-contain transition-transform group-hover:scale-105" 
                       onLoad={handleImageLoad}
                       onError={(e) => handleImageError(e)}
                       style={{ 
@@ -329,9 +330,9 @@ export function ResultStep({
                         </div>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                      <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                    </div>
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                  <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </div>
                   </>
                 )}
               </div>
@@ -353,6 +354,27 @@ export function ResultStep({
               </div>
             </div>
           )}
+
+          {/* QR코드 섹션 */}
+          <div className="flex justify-center mt-6">
+            <div className="bg-white p-4 rounded-xl border-2 border-teal-200 shadow-sm">
+              <div className="text-center mb-3">
+                <QrCode className="h-5 w-5 text-teal-600 mx-auto mb-1" />
+                <p className="text-sm font-medium text-teal-700">QR코드로 이미지 저장</p>
+                <p className="text-xs text-teal-500">스캔하면 바로 저장할 수 있어요!</p>
+              </div>
+              {generatedImage && (
+                <QRCodeSVG
+                  value={generatedImage}
+                  size={120}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="M"
+                  includeMargin={true}
+                />
+              )}
+            </div>
+          </div>
 
           <div className="flex justify-center space-x-4 mt-6">
             <Button

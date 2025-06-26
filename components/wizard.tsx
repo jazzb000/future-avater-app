@@ -103,7 +103,7 @@ export function Wizard() {
         },
         {
           id: 7,
-          title: "미래의 나!",
+          title: "시간버스!",
           component: (
             <ResultStep
               image={generatedImage}
@@ -120,7 +120,7 @@ export function Wizard() {
         ...baseSteps,
         {
           id: 6,
-          title: "미래의 나!",
+          title: "시간버스!",
           component: (
             <ResultStep
               image={generatedImage}
@@ -163,7 +163,7 @@ export function Wizard() {
       setError(null)
 
       try {
-        console.log("🚀 API 요청 시작 (미래의 나):", {
+        console.log("🚀 API 요청 시작 (시간버스):", {
           timestamp: new Date().toISOString(),
           userId: user.id.substring(0, 8) + "...",
           hasPhoto: !!selections.photo,
@@ -206,7 +206,7 @@ export function Wizard() {
 
         const data = await response.json()
 
-        console.log("📥 API 응답 수신 (미래의 나):", {
+        console.log("📥 API 응답 수신 (시간버스):", {
           success: data.success,
           hasImageUrl: !!data.imageUrl,
           imageUrl: data.imageUrl?.substring(0, 100) + "...",
@@ -239,7 +239,7 @@ export function Wizard() {
           setIsGenerating(false)
         }
       } catch (error: any) {
-        console.error("❌ 이미지 생성 요청 중 오류 (미래의 나):", {
+        console.error("❌ 이미지 생성 요청 중 오류 (시간버스):", {
           error: error.message,
           name: error.name,
           stack: error.stack?.substring(0, 500),
@@ -383,7 +383,7 @@ export function Wizard() {
             className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
             {currentStep === steps.length - 2 ? (
-              "미래의 나 만들기"
+              "시간버스 타기"
             ) : (
               <>
                 다음 <ChevronRight className="ml-2 h-4 w-4" />

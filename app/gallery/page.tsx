@@ -34,6 +34,56 @@ export default function GalleryPage() {
   const [styleFilter, setStyleFilter] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+
+  // 나이 값을 한국어로 변환하는 함수
+  const getAgeLabel = (age: string) => {
+    switch (age) {
+      case "2years": return "2살"
+      case "5years": return "5살"
+      case "teen": return "10대"
+      case "20s": return "20대"
+      case "30s": return "30대"
+      case "40s": return "40대"
+      case "50s": return "50대" // 기존 값 호환성
+      case "60s": return "60대"
+      case "adult": return "성인" // 기존 값 호환성
+      default: return age
+    }
+  }
+
+  // 직업 값을 한국어로 변환하는 함수
+  const getJobLabel = (job: string) => {
+    switch (job) {
+      case "none": return "일반인"
+      case "doctor": return "의사"
+      case "teacher": return "선생님"
+      case "astronaut": return "우주비행사"
+      case "chef": return "요리사"
+      case "firefighter": return "소방관"
+      case "scientist": return "과학자"
+      case "artist": return "예술가"
+      case "athlete": return "운동선수"
+      case "announcer": return "아나운서"
+      default: return job
+    }
+  }
+
+  // 직업 값을 한국어로 변환하는 함수
+  const getJobLabel = (job: string) => {
+    switch (job) {
+      case "none": return "일반인"
+      case "doctor": return "의사"
+      case "teacher": return "선생님"
+      case "astronaut": return "우주비행사"
+      case "chef": return "요리사"
+      case "firefighter": return "소방관"
+      case "scientist": return "과학자"
+      case "artist": return "예술가"
+      case "athlete": return "운동선수"
+      case "announcer": return "아나운서"
+      default: return job
+    }
+  }
   const itemsPerPage = 12
 
   const fetchImages = async (reset = false) => {
@@ -149,6 +199,7 @@ export default function GalleryPage() {
   }
 
   const jobs = [
+    { value: "none", label: "직업 없음" },
     { value: "doctor", label: "의사" },
     { value: "teacher", label: "선생님" },
     { value: "astronaut", label: "우주비행사" },
@@ -171,8 +222,8 @@ export default function GalleryPage() {
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">미래의 나 갤러리</h1>
-        <p className="text-lg text-purple-500">다른 사용자들이 만든 미래의 모습을 구경해보세요!</p>
+        <h1 className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">시간버스 갤러리</h1>
+        <p className="text-lg text-purple-500">다른 사용자들이 시간버스를 타고 변신한 모습을 구경해보세요!</p>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -287,7 +338,7 @@ export default function GalleryPage() {
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-medium text-purple-700 truncate">
-                      {image.age} {image.job}
+                      {getAgeLabel(image.age)} {getJobLabel(image.job)}
                     </h3>
                     <p className="text-xs text-gray-500 truncate">
                       스타일: {image.style} | 작성자: {image.profiles?.username || "사용자"}
