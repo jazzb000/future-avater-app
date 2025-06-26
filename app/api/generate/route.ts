@@ -11,8 +11,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// Vercel Hobby 플랜의 최대 허용값 (60초)
-export const maxDuration = 60
+// 최대 실행 시간 300초 설정
+export const maxDuration = 300
 
 // 테스트 모드 설정 (개발 및 테스트 시 true로 설정)
 const TEST_MODE = false
