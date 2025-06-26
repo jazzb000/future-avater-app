@@ -67,23 +67,6 @@ export default function GalleryPage() {
       default: return job
     }
   }
-
-  // 직업 값을 한국어로 변환하는 함수
-  const getJobLabel = (job: string) => {
-    switch (job) {
-      case "none": return "일반인"
-      case "doctor": return "의사"
-      case "teacher": return "선생님"
-      case "astronaut": return "우주비행사"
-      case "chef": return "요리사"
-      case "firefighter": return "소방관"
-      case "scientist": return "과학자"
-      case "artist": return "예술가"
-      case "athlete": return "운동선수"
-      case "announcer": return "아나운서"
-      default: return job
-    }
-  }
   const itemsPerPage = 12
 
   const fetchImages = async (reset = false) => {
