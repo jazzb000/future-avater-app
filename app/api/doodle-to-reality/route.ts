@@ -2,13 +2,82 @@ import { NextResponse } from "next/server"
 import { supabaseAdmin, uploadImageToStorage, base64ToBuffer, generateUniqueFileName } from "@/lib/supabase"
 import OpenAI from "openai"
 import sharp from "sharp"
+import * as fs from "fs/promises"
+import path from "path"
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-
+// 돌핀인캘리 AI 로고 합성 함수
+async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    // 로고 파일 경로
+    const logoPath = path.join(process.cwd(), 'public', '돌핀인캘리 AI.svg')
+    
+    // SVG 파일 읽기
+    const logoSvg = await fs.readFile(logoPath, 'utf-8')
+    
+    // 이미지 정보 가져오기
+    const image = sharp(imageBuffer)
+    const { width, height } = await image.metadata()
+    
+    if (!width || !height || width < 100 || height < 100) {
+      throw new Error(`이미지 크기가 유효하지 않습니다: ${width}x${height}`)
+    }
+    
+    // 돌핀인캘리 AI 로고의 비율을 가정 (실제 SVG 확인 후 조정 필요)
+    // 일반적인 로고 비율로 2:1 정도로 가정
+    const svgAspectRatio = 2.0
+    
+    // 로고 높이를 이미지 크기의 10%로 설정하고, 원래 비율에 맞춰 너비 계산
+    const logoHeight = Math.min(width, height) * 0.10
+    const logoWidth = logoHeight * svgAspectRatio
+    
+    console.log(`📐 돌핀인캘리 AI 로고 비율 계산: 원본 비율 ${svgAspectRatio.toFixed(2)}, 크기 ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`)
+    
+    // SVG를 PNG로 변환하여 원래 비율 유지 (고품질 렌더링)
+    const logoBuffer = await sharp(Buffer.from(logoSvg))
+      .resize(Math.round(logoWidth), Math.round(logoHeight), {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // 투명 배경
+      })
+      .png({ 
+        quality: 90,
+        compressionLevel: 6
+      })
+      .toBuffer()
+    
+    // 오른쪽 아래에 로고 합성 (여백을 충분히 확보)
+    const padding = logoHeight * 0.3 // 여백을 늘려서 잘림 방지
+    let logoX = Math.round(width - logoWidth - padding)
+    let logoY = Math.round(height - logoHeight - padding)
+    
+    // 경계 검사 - 로고가 이미지 범위를 벗어나지 않도록 보정
+    logoX = Math.max(0, Math.min(logoX, width - logoWidth))
+    logoY = Math.max(0, Math.min(logoY, height - logoHeight))
+    
+    console.log(`🐬 돌핀인캘리 AI 로고 합성 중: 위치(${logoX}, ${logoY}), 크기(${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}), 이미지크기(${width}x${height})`)
+    
+    const result = await image
+      .composite([{
+        input: logoBuffer,
+        left: logoX,
+        top: logoY,
+        blend: 'over' // 투명도 지원
+      }])
+      .png() // 원본 품질 유지를 위해 PNG로 변경
+      .toBuffer()
+    
+    console.log('✅ 돌핀인캘리 AI 로고 합성 완료')
+    return result
+    
+  } catch (error) {
+    console.log('⚠️ 돌핀인캘리 AI 로고 합성 실패, 원본 이미지 반환:', error)
+    return imageBuffer
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -151,10 +220,15 @@ export async function POST(req: Request) {
     let finalImageUrl: string | null = null
 
     if (imageData.url) {
-      // URL로 받은 경우 - 이미지를 다운로드하여 Storage에 업로드
-      console.log("📥 OpenAI에서 받은 이미지 URL을 Storage로 업로드 중...")
+      // URL로 받은 경우 - 이미지를 다운로드하여 로고 합성 후 Storage에 업로드
+      console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
       const imageResponse = await fetch(imageData.url)
-      const downloadedImageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+      const arrayBuffer = await imageResponse.arrayBuffer()
+      let downloadedImageBuffer: Buffer = Buffer.from(arrayBuffer)
+      
+      // 돌핀인캘리 AI 로고 합성
+      console.log("🐬 돌핀인캘리 AI 로고 합성 진행")
+      downloadedImageBuffer = await addDolphinAILogo(downloadedImageBuffer)
       
       // Storage에 업로드
       const fileName = generateUniqueFileName(userId, 'doodle')
@@ -169,9 +243,13 @@ export async function POST(req: Request) {
       finalImageUrl = storageUrl
       console.log("✅ Storage 업로드 완료:", { url: storageUrl?.substring(0, 50) + "..." })
     } else if (imageData.b64_json) {
-      // Base64로 받은 경우 - 직접 Storage에 업로드
-      console.log("📥 OpenAI에서 받은 base64 이미지를 Storage로 업로드 중...")
-      const imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
+      // Base64로 받은 경우 - 로고 합성 후 Storage에 업로드
+      console.log("📥 OpenAI에서 받은 base64 이미지 처리 중...")
+      let imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
+      
+      // 돌핀인캘리 AI 로고 합성
+      console.log("🐬 돌핀인캘리 AI 로고 합성 진행")
+      imageBuffer = await addDolphinAILogo(imageBuffer)
       
       // Storage에 업로드
       const fileName = generateUniqueFileName(userId, 'doodle')

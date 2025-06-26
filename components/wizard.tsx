@@ -11,7 +11,7 @@ import { AgeStep } from "./steps/age-step"
 import { JobStep } from "./steps/job-step"
 import { StyleStep } from "./steps/style-step"
 import { LayoutStep } from "./steps/layout-step"
-import { NameStep } from "./steps/name-step"
+
 import { ResultStep } from "./steps/result-step"
 import { Check, ChevronLeft, ChevronRight } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -30,8 +30,6 @@ export type UserSelections = {
   job: string | null
   style: string | null
   layout: string | null
-  customLayoutData: string | null
-  name: string | null
 }
 
 export function Wizard() {
@@ -48,8 +46,6 @@ export function Wizard() {
     job: null,
     style: null,
     layout: null,
-    customLayoutData: null,
-    name: null,
   })
   const router = useRouter()
 
@@ -93,46 +89,23 @@ export function Wizard() {
   ]
 
   // 명함 스타일일 때 이름 입력 단계 추가
-  const steps: WizardStep[] = selections.layout === "business-card" 
-    ? [
-        ...baseSteps,
-        {
-          id: 6,
-          title: "이름 입력하기",
-          component: <NameStep updateSelection={updateSelection} currentName={selections.name} currentJob={selections.job} />,
-        },
-        {
-          id: 7,
-          title: "시간버스!",
-          component: (
-            <ResultStep
-              image={generatedImage}
-              isLoading={isGenerating}
-              imageId={generatedImageId}
-              setIsLoading={setIsGenerating}
-              setGeneratedImage={setGeneratedImage}
-              originalPhoto={selections.photo}
-            />
-          ),
-        },
-      ]
-    : [
-        ...baseSteps,
-        {
-          id: 6,
-          title: "시간버스!",
-          component: (
-            <ResultStep
-              image={generatedImage}
-              isLoading={isGenerating}
-              imageId={generatedImageId}
-              setIsLoading={setIsGenerating}
-              setGeneratedImage={setGeneratedImage}
-              originalPhoto={selections.photo}
-            />
-          ),
-        },
-      ]
+  const steps: WizardStep[] = [
+    ...baseSteps,
+    {
+      id: 6,
+      title: "시간버스!",
+      component: (
+        <ResultStep
+          image={generatedImage}
+          isLoading={isGenerating}
+          imageId={generatedImageId}
+          setIsLoading={setIsGenerating}
+          setGeneratedImage={setGeneratedImage}
+          originalPhoto={selections.photo}
+        />
+      ),
+    },
+  ]
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -185,8 +158,6 @@ export function Wizard() {
             job: selections.job,
             style: selections.style,
             layout: selections.layout,
-            customLayoutData: selections.customLayoutData,
-            name: selections.name,
             userId: user.id,
           }),
           signal: controller.signal, // 타임아웃 신호 추가
@@ -277,10 +248,6 @@ export function Wizard() {
       case 4:
         return !selections.layout
       case 5:
-        // 명함 스타일일 때만 이름 입력 필수
-        if (selections.layout === "business-card") {
-          return !selections.name || selections.name.trim() === ""
-        }
         return false
       default:
         return false

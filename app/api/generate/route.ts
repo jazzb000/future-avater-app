@@ -44,7 +44,7 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     console.log("🚀 미래의 나 API 호출 시작")
-    const { photo, age, job, style, layout, customLayoutData, name, userId } = await req.json()
+    const { photo, age, job, style, layout, userId } = await req.json()
 
     if (!photo || !age || !job || !style || !layout || !userId) {
       console.log("❌ 필수 항목 누락:", { 
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
 
     // 프롬프트 생성
     console.log("🎭 프롬프트 생성 중...")
-    const prompt = generatePrompt(age, job, style, layout, customLayoutData)
+    const prompt = generatePrompt(age, job, style, layout)
     console.log("✅ 프롬프트 생성 완료:", { promptLength: prompt.length, age, job, style, layout })
 
     // 티켓 사용
@@ -198,7 +198,7 @@ export async function POST(req: Request) {
 
     try {
       // 동기적으로 이미지 생성
-      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout, name)
+      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout)
 
       // 이미지 생성 완료 후 응답 반환
       console.log("🎉 이미지 생성 완료 - 응답 반환:", {
@@ -262,174 +262,7 @@ export async function POST(req: Request) {
 // 한국잡월드 로고 합성 함수
 
 
-async function addBusinessCardLayout(imageBuffer: Buffer, name: string, job: string): Promise<Buffer> {
-  try {
-    console.log("💼 명함 레이아웃 합성 시작:", { name, job })
-    
-    // 명함 템플릿 로드
-    const templatePath = path.join(process.cwd(), "public", "Frame 21.png")
-    let template: sharp.Sharp
-    
-    try {
-      await fs.access(templatePath)
-      template = sharp(templatePath)
-      console.log("✅ 명함 템플릿 로드 성공")
-    } catch (templateError) {
-      console.log("⚠️ 명함 템플릿 로드 실패, 기본 템플릿 생성")
-      // 템플릿 파일이 없으면 기본 명함 배경 생성 (실제 명함 비율로)
-      template = sharp({
-        create: {
-          width: 600,
-          height: 360,
-          channels: 4,
-          background: { r: 245, g: 245, b: 245, alpha: 1 }
-        }
-      })
-    }
 
-    // 템플릿 정보 가져오기
-    const templateMetadata = await template.metadata()
-    const templateWidth = templateMetadata.width || 600
-    const templateHeight = templateMetadata.height || 360
-    
-    console.log("📐 템플릿 크기:", { width: templateWidth, height: templateHeight })
-
-    // 한국어 직업명 매핑
-    const jobNames: { [key: string]: string } = {
-      doctor: "의사",
-      teacher: "선생님", 
-      astronaut: "우주비행사",
-      chef: "요리사",
-      firefighter: "소방관",
-      scientist: "과학자",
-      artist: "예술가",
-      athlete: "운동선수",
-      announcer: "아나운서"
-    }
-
-    const jobKorean = jobNames[job] || job
-
-    // 사용자 이미지 크기 계산 (명함 왼쪽 1/3 영역에 맞춤)
-    const imageWidth = Math.floor(templateHeight * 0.8) // 높이의 80%를 너비로
-    const imageHeight = Math.floor(templateHeight * 0.8) // 높이의 80%
-    
-    console.log("📷 사용자 이미지 크기:", { width: imageWidth, height: imageHeight })
-
-    // 사용자 이미지 처리 
-    const userImage = await sharp(imageBuffer)
-      .resize(imageWidth, imageHeight, { 
-        fit: 'cover',
-        position: 'center'
-      })
-      .png()
-      .toBuffer()
-
-    // 왼쪽 모서리만 둥글게 처리하는 마스크 생성
-    const roundedMask = Buffer.from(
-      `<svg width="${imageWidth}" height="${imageHeight}">
-        <defs>
-          <mask id="rounded">
-            <rect width="${imageWidth}" height="${imageHeight}" fill="black"/>
-            <path d="M ${imageWidth/2} 0 
-                     L ${imageWidth} 0 
-                     L ${imageWidth} ${imageHeight} 
-                     L ${imageWidth/2} ${imageHeight} 
-                     Q 0 ${imageHeight} 0 ${imageHeight/2} 
-                     Q 0 0 ${imageWidth/2} 0 Z" 
-                  fill="white"/>
-          </mask>
-        </defs>
-        <rect width="${imageWidth}" height="${imageHeight}" fill="white" mask="url(#rounded)"/>
-      </svg>`
-    )
-
-    const maskedUserImage = await sharp(userImage)
-      .composite([
-        {
-          input: roundedMask,
-          blend: 'dest-in'
-        }
-      ])
-      .png()
-      .toBuffer()
-
-    // 텍스트 위치 계산 (오른쪽 영역에 배치)
-    const textStartX = Math.floor(templateWidth * 0.4) // 템플릿 너비의 40% 지점부터
-    const nameY = Math.floor(templateHeight * 0.35) // 위에서 35% 지점
-    const jobY = Math.floor(templateHeight * 0.5) // 위에서 50% 지점
-    
-    // 폰트 크기 계산 (템플릿 크기에 비례)
-    const nameFontSize = Math.max(Math.floor(templateWidth * 0.06), 24) // 최소 24px
-    const jobFontSize = Math.max(Math.floor(templateWidth * 0.04), 16) // 최소 16px
-    
-    console.log("📝 텍스트 설정:", { 
-      textStartX, 
-      nameY, 
-      jobY, 
-      nameFontSize, 
-      jobFontSize 
-    })
-
-    // SVG 텍스트 오버레이 생성
-    const svgOverlay = `
-      <svg width="${templateWidth}" height="${templateHeight}">
-        <defs>
-          <style>
-            .name-text { 
-              font-family: 'Arial Black', 'Malgun Gothic', sans-serif; 
-              font-size: ${nameFontSize}px; 
-              font-weight: bold; 
-              fill: #1a1a1a;
-              dominant-baseline: middle;
-            }
-            .job-text { 
-              font-family: 'Arial', 'Malgun Gothic', sans-serif; 
-              font-size: ${jobFontSize}px; 
-              font-weight: 500; 
-              fill: #4a5568;
-              dominant-baseline: middle;
-            }
-          </style>
-        </defs>
-        <text x="${textStartX}" y="${nameY}" class="name-text">${name}</text>
-        <text x="${textStartX}" y="${jobY}" class="job-text">${jobKorean}</text>
-      </svg>
-    `
-
-    // 이미지 위치 계산 (왼쪽에 배치)
-    const imageLeft = Math.floor(templateWidth * 0.03) // 왼쪽 여백 3%
-    const imageTop = Math.floor((templateHeight - imageHeight) / 2) // 세로 중앙
-
-    console.log("📍 이미지 위치:", { imageLeft, imageTop })
-
-    // 최종 합성
-    const result = await template
-      .composite([
-        {
-          input: maskedUserImage,
-          left: imageLeft,
-          top: imageTop,
-          blend: 'over'
-        },
-        {
-          input: Buffer.from(svgOverlay),
-          left: 0,
-          top: 0,
-          blend: 'over'
-        }
-      ])
-      .png()
-      .toBuffer()
-
-    console.log("✅ 명함 레이아웃 합성 완료")
-    return result
-
-  } catch (error: any) {
-    console.error("❌ 명함 레이아웃 합성 실패:", error)
-    console.error("오류 상세:", error.stack)
-    return imageBuffer // 실패 시 원본 반환
-  }
-}
 
 async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
   try {
@@ -498,14 +331,81 @@ async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
   }
 }
 
+async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    // 로고 파일 경로
+    const logoPath = path.join(process.cwd(), 'public', '돌핀인캘리 AI.svg')
+    
+    // SVG 파일 읽기
+    const logoSvg = await fs.readFile(logoPath, 'utf-8')
+    
+    // 이미지 정보 가져오기
+    const image = sharp(imageBuffer)
+    const { width, height } = await image.metadata()
+    
+    if (!width || !height || width < 100 || height < 100) {
+      throw new Error(`이미지 크기가 유효하지 않습니다: ${width}x${height}`)
+    }
+    
+    // 돌핀인캘리 AI 로고의 비율을 가정 (실제 SVG 확인 후 조정 필요)
+    // 일반적인 로고 비율로 2:1 정도로 가정
+    const svgAspectRatio = 2.0
+    
+    // 로고 높이를 이미지 크기의 10%로 설정하고, 원래 비율에 맞춰 너비 계산
+    const logoHeight = Math.min(width, height) * 0.10
+    const logoWidth = logoHeight * svgAspectRatio
+    
+    console.log(`📐 돌핀인캘리 AI 로고 비율 계산: 원본 비율 ${svgAspectRatio.toFixed(2)}, 크기 ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`)
+    
+    // SVG를 PNG로 변환하여 원래 비율 유지 (고품질 렌더링)
+    const logoBuffer = await sharp(Buffer.from(logoSvg))
+      .resize(Math.round(logoWidth), Math.round(logoHeight), {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 } // 투명 배경
+      })
+      .png({ 
+        quality: 90,
+        compressionLevel: 6
+      })
+      .toBuffer()
+    
+    // 오른쪽 아래에 로고 합성 (여백을 충분히 확보)
+    const padding = logoHeight * 0.3 // 여백을 늘려서 잘림 방지
+    let logoX = Math.round(width - logoWidth - padding)
+    let logoY = Math.round(height - logoHeight - padding)
+    
+    // 경계 검사 - 로고가 이미지 범위를 벗어나지 않도록 보정
+    logoX = Math.max(0, Math.min(logoX, width - logoWidth))
+    logoY = Math.max(0, Math.min(logoY, height - logoHeight))
+    
+    console.log(`🐬 돌핀인캘리 AI 로고 합성 중: 위치(${logoX}, ${logoY}), 크기(${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}), 이미지크기(${width}x${height})`)
+    
+    const result = await image
+      .composite([{
+        input: logoBuffer,
+        left: logoX,
+        top: logoY,
+        blend: 'over' // 투명도 지원
+      }])
+      .png() // 원본 품질 유지를 위해 PNG로 변경
+      .toBuffer()
+    
+    console.log('✅ 돌핀인캘리 AI 로고 합성 완료')
+    return result
+    
+  } catch (error) {
+    console.log('⚠️ 돌핀인캘리 AI 로고 합성 실패, 원본 이미지 반환:', error)
+    return imageBuffer
+  }
+}
+
 async function processImageGeneration(
   jobId: string, 
   photo: string, 
   prompt: string, 
   userId: string, 
   job: string,
-  layout?: string,
-  name?: string
+  layout?: string
 ): Promise<string> {
   const supabase = supabaseAdmin()
   
@@ -563,11 +463,13 @@ async function processImageGeneration(
           downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
         }
         
-        // 명함 스타일인 경우 명함 합성
-        if (layout === "business-card" && name) {
-          console.log("💼 명함 스타일 감지 - 명함 합성 진행")
-          downloadedImageBuffer = await addBusinessCardLayout(downloadedImageBuffer, name, job)
+        // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
+        if (layout === "dolphin-ai") {
+          console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
+          downloadedImageBuffer = await addDolphinAILogo(downloadedImageBuffer)
         }
+        
+
         
         // Storage에 업로드
         const fileName = generateUniqueFileName(userId, 'generated')
@@ -592,11 +494,13 @@ async function processImageGeneration(
           imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
         }
         
-        // 명함 스타일인 경우 명함 합성
-        if (layout === "business-card" && name) {
-          console.log("💼 명함 스타일 감지 - 명함 합성 진행")
-          imageBuffer = await addBusinessCardLayout(imageBuffer, name, job)
+        // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
+        if (layout === "dolphin-ai") {
+          console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
+          imageBuffer = await addDolphinAILogo(imageBuffer)
         }
+        
+
         
         // Storage에 업로드
         const fileName = generateUniqueFileName(userId, 'generated')
@@ -670,7 +574,7 @@ async function processImageGeneration(
   }
 }
 
-function generatePrompt(age: string, job: string, style: string, layout: string, customLayoutData?: string): string {
+function generatePrompt(age: string, job: string, style: string, layout: string): string {
   // 나이에 따른 특성 정의
   let ageDescription = ""
   let faceAdjustment = ""
@@ -798,38 +702,17 @@ function generatePrompt(age: string, job: string, style: string, layout: string,
   let layoutDescription = ""
   let compositionInstructions = ""
   switch (layout) {
-    case "business-card":
-      layoutDescription = "전문적인 명함에 적합한 깔끔하고 격식 있는 비즈니스 스타일 초상화로"
-      compositionInstructions = "명함에 적합한 전문적이고 신뢰감 있는 표정과 자세로, 비즈니스 환경에 어울리는 복장과 배경으로"
-      break
-    case "certificate":
-      layoutDescription = "공식적인 테두리와 우아한 타이포그래피, 의식적 요소를 가진 공식 인증서나 상장으로 설계된"
-      compositionInstructions = "장식적 테두리와 공식 인장, 권위 있는 표현을 가진 정식 인증서 레이아웃으로 만들어"
-      break
-    case "magazine":
-      layoutDescription = "굵은 헤드라인과 전문적인 사진 레이아웃, 편집 디자인을 가진 잡지 커버로 설계된"
-      compositionInstructions = "인상적인 비주얼과 타이포그래피 통합, 편집 레이아웃 원칙을 사용한 잡지 커버 구성으로"
-      break
-    case "bookmark":
-      layoutDescription = "세로 구성과 우아한 디자인 요소를 가진 장식적인 북마크로 설계된"
-      compositionInstructions = "장식적 요소와 공간 효율적인 디자인을 가진 세로형 북마크 레이아웃으로 만들어"
-      break
+
+    
     case "korea-job-world":
       layoutDescription = ""
       compositionInstructions = ""
       break
-    case "custom":
-      // 사용자 정의 레이아웃 데이터 파싱
-      try {
-        const customLayout = JSON.parse(customLayoutData || "{}")
-        const bgColor = customLayout.bgColor || "#f3e8ff"
-        layoutDescription = `${bgColor} 배경색과 사용자 지정 디자인 선호도를 사용한 맞춤형 레이아웃으로`
-        compositionInstructions = `${bgColor} 배경과 개인화된 디자인 요소를 가진 맞춤형 레이아웃을 적용하여`
-      } catch (e) {
-        layoutDescription = "사용자 선호도에 맞춘 맞춤형 레이아웃 디자인으로"
-        compositionInstructions = "독특한 디자인 요소를 가진 개인화된 레이아웃을 만들어"
-      }
+    case "dolphin-ai":
+      layoutDescription = ""
+      compositionInstructions = ""
       break
+
     default:
       layoutDescription = "주제를 효과적으로 보여주는 깔끔하고 전문적인 레이아웃으로"
       compositionInstructions = "균형 잡힌 요소와 주제에 대한 명확한 초점을 가진 전문적인 구성을 사용하여"
