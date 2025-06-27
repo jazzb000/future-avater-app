@@ -15,6 +15,7 @@ type GalleryImage = {
   image_url: string
   job: string
   age: string
+  gender: string
   style: string
   created_at: string
   user_id: string
@@ -48,6 +49,15 @@ export default function GalleryPage() {
       case "60s": return "60대"
       case "adult": return "성인" // 기존 값 호환성
       default: return age
+    }
+  }
+
+  // 성별 값을 한국어로 변환하는 함수
+  const getGenderLabel = (gender: string) => {
+    switch (gender) {
+      case "male": return "남성"
+      case "female": return "여성"
+      default: return ""
     }
   }
 
@@ -85,6 +95,7 @@ export default function GalleryPage() {
           image_url, 
           job, 
           age, 
+          gender,
           style, 
           created_at,
           user_id,
@@ -321,7 +332,7 @@ export default function GalleryPage() {
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-medium text-purple-700 truncate">
-                      {getAgeLabel(image.age)} {getJobLabel(image.job)}
+                      {getGenderLabel(image.gender)} {getAgeLabel(image.age)} {getJobLabel(image.job)}
                     </h3>
                     <p className="text-xs text-gray-500 truncate">
                       스타일: {image.style} | 작성자: {image.profiles?.username || "사용자"}

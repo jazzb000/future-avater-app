@@ -44,12 +44,13 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     console.log("🚀 미래의 나 API 호출 시작")
-    const { photo, age, job, style, layout, userId } = await req.json()
+    const { photo, age, gender, job, style, layout, userId } = await req.json()
 
-    if (!photo || !age || !job || !style || !layout || !userId) {
+    if (!photo || !age || !gender || !job || !style || !layout || !userId) {
       console.log("❌ 필수 항목 누락:", { 
         hasPhoto: !!photo, 
         hasAge: !!age, 
+        hasGender: !!gender,
         hasJob: !!job, 
         hasStyle: !!style, 
         hasLayout: !!layout, 
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
     }
 
     console.log("✅ 요청 데이터 검증 완료")
-    console.log("📊 요청 정보:", { age, job, style, layout, userId: userId.substring(0, 8) + "..." })
+    console.log("📊 요청 정보:", { age, gender, job, style, layout, userId: userId.substring(0, 8) + "..." })
 
     // OpenAI API 키 확인
     if (!process.env.OPENAI_API_KEY) {
@@ -125,8 +126,8 @@ export async function POST(req: Request) {
 
     // 프롬프트 생성
     console.log("🎭 프롬프트 생성 중...")
-    const prompt = generatePrompt(age, job, style, layout)
-    console.log("✅ 프롬프트 생성 완료:", { promptLength: prompt.length, age, job, style, layout })
+    const prompt = generatePrompt(age, gender, job, style, layout)
+    console.log("✅ 프롬프트 생성 완료:", { promptLength: prompt.length, age, gender, job, style, layout })
 
     // 티켓 사용
     console.log("🎫 티켓 사용 중...")
@@ -154,6 +155,7 @@ export async function POST(req: Request) {
       user_id: userId,
       job,
       age,
+      gender,
       style,
       layout,
       prompt: prompt,
@@ -574,7 +576,20 @@ async function processImageGeneration(
   }
 }
 
-function generatePrompt(age: string, job: string, style: string, layout: string): string {
+function generatePrompt(age: string, gender: string, job: string, style: string, layout: string): string {
+  // 성별에 따른 특성 정의
+  let genderDescription = ""
+  switch (gender) {
+    case "male":
+      genderDescription = "남성"
+      break
+    case "female":
+      genderDescription = "여성"
+      break
+    default:
+      genderDescription = ""
+  }
+
   // 나이에 따른 특성 정의
   let ageDescription = ""
   let faceAdjustment = ""
@@ -719,7 +734,7 @@ function generatePrompt(age: string, job: string, style: string, layout: string)
   }
 
   // 최종 상세 프롬프트 조합 (gpt-image-1의 32,000자 한계 활용)
-  return `이 사람을 ${ageDescription} ${jobDescription} 모습으로 변환해주세요.
+  return `이 사람을 ${genderDescription} ${ageDescription} ${jobDescription} 모습으로 변환해주세요.
 
 환경 및 배경: ${environmentDescription} 배치해주세요.
 
@@ -727,8 +742,5 @@ function generatePrompt(age: string, job: string, style: string, layout: string)
 
 레이아웃 및 구성: 최종 구성은 ${layoutDescription} 형태여야 합니다. ${compositionInstructions} 구성해주세요.
 
-
-최종 이미지는 이사람의 고유한 얼굴특성은 변화하면 안되고 이러한 특성을 반영해서 제작해주되 내가 전송한 사진의 
-얼굴이 여자라면 얼굴은 본 얼굴에서 나올수있는 부분으로 해줘 내가 전송한 사진의 얼굴이 남자라면 얼굴은 본 얼굴에서 나올수있는 최대한의 
-얼굴특성에 맞게 만들어줘`
+최종 이미지는 이 사람의 고유한 얼굴 특성을 유지하면서 ${genderDescription} 특성에 맞게 변환해주세요. 선택한 성별에 따른 자연스러운 외모와 특징을 반영하되, 원본 얼굴의 기본적인 구조와 비율은 보존해주세요.`
 }

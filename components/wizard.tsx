@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { UploadStep } from "./steps/upload-step"
 import { AgeStep } from "./steps/age-step"
+import { GenderStep } from "./steps/gender-step"
 import { JobStep } from "./steps/job-step"
 import { StyleStep } from "./steps/style-step"
 import { LayoutStep } from "./steps/layout-step"
-
 import { ResultStep } from "./steps/result-step"
 import { Check, ChevronLeft, ChevronRight } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
@@ -27,6 +27,7 @@ type WizardStep = {
 export type UserSelections = {
   photo: string | null
   age: string | null
+  gender: string | null
   job: string | null
   style: string | null
   layout: string | null
@@ -43,6 +44,7 @@ export function Wizard() {
   const [selections, setSelections] = useState<UserSelections>({
     photo: null,
     age: null,
+    gender: null,
     job: null,
     style: null,
     layout: null,
@@ -73,16 +75,21 @@ export function Wizard() {
     },
     {
       id: 3,
+      title: "성별 선택하기",
+      component: <GenderStep updateSelection={updateSelection} currentGender={selections.gender} />,
+    },
+    {
+      id: 4,
       title: "직업 선택하기",
       component: <JobStep updateSelection={updateSelection} currentJob={selections.job} />,
     },
     {
-      id: 4,
+      id: 5,
       title: "스타일 고르기",
       component: <StyleStep updateSelection={updateSelection} currentStyle={selections.style} />,
     },
     {
-      id: 5,
+      id: 6,
       title: "레이아웃 선택하기",
       component: <LayoutStep updateSelection={updateSelection} currentLayout={selections.layout} />,
     },
@@ -92,7 +99,7 @@ export function Wizard() {
   const steps: WizardStep[] = [
     ...baseSteps,
     {
-      id: 6,
+      id: 7,
       title: "시간버스!",
       component: (
         <ResultStep
@@ -155,6 +162,7 @@ export function Wizard() {
           body: JSON.stringify({
             photo: selections.photo,
             age: selections.age,
+            gender: selections.gender,
             job: selections.job,
             style: selections.style,
             layout: selections.layout,
@@ -242,12 +250,14 @@ export function Wizard() {
       case 1:
         return !selections.age
       case 2:
-        return !selections.job
+        return !selections.gender
       case 3:
-        return !selections.style
+        return !selections.job
       case 4:
-        return !selections.layout
+        return !selections.style
       case 5:
+        return !selections.layout
+      case 6:
         return false
       default:
         return false
