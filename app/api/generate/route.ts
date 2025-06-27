@@ -199,47 +199,180 @@ export async function POST(req: Request) {
     console.log("✅ 작업 레코드 생성 완료:", { jobId })
 
     try {
-      // 동기적으로 이미지 생성
-      const imageUrl = await processImageGeneration(jobId, photo, prompt, userId, job, layout)
+      // Base64 데이터 URL에서 이미지 데이터 추출
+      console.log("🖼️ 이미지 데이터 처리 중...")
+      const base64Data = photo.split(",")[1]
+      let imageBuffer = Buffer.from(base64Data, "base64")
 
-      // 이미지 생성 완료 후 응답 반환
-      console.log("🎉 이미지 생성 완료 - 응답 반환:", {
-        jobId,
-        imageUrl: imageUrl.substring(0, 100) + "...",
-        isBase64: imageUrl.startsWith("data:"),
-        urlLength: imageUrl.length,
-        timestamp: new Date().toISOString()
-      })
+      // 이미지 품질 향상 전처리
+      imageBuffer = await enhanceImageQuality(imageBuffer)
+
+      // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
+      const imageFile = new File([imageBuffer], "photo.jpg", { type: "image/jpeg" })
+
+      console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/jpeg" })
+
+      // OpenAI API를 사용하여 이미지 생성
+      console.log("🤖 OpenAI API 호출 시작...")
+      console.log("📋 API 설정:", { model: "gpt-image-1", size: "1024x1536", quality: "high" })
       
+      let generatedImageUrl: string | null = null
+
+      try {
+        const result = await openai.images.edit({
+          model: "gpt-image-1",
+          image: imageFile,
+          prompt: prompt,
+          n: 1,
+          size: "1024x1536",
+          quality: "high",
+          output_format: "png",
+          background: "auto",
+        })
+
+        console.log("✅ OpenAI API 호출 완료")
+
+        // 생성된 이미지 URL 또는 base64
+        if (!result.data || !result.data[0]) {
+          console.log("❌ OpenAI API 응답에서 이미지 데이터 없음")
+          throw new Error("OpenAI API에서 이미지 데이터를 받지 못했습니다")
+        }
+
+        const imageData = result.data[0]
+
+        if (imageData.url) {
+          // URL로 받은 경우 - 이미지를 다운로드
+          console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
+          const imageResponse = await fetch(imageData.url)
+          const arrayBuffer = await imageResponse.arrayBuffer()
+          let downloadedImageBuffer = Buffer.from(arrayBuffer as ArrayBuffer)
+          
+          // 한국잡월드 레이아웃인 경우 로고 합성
+          if (layout === "korea-job-world") {
+            console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
+            downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
+          }
+          
+          // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
+          if (layout === "dolphin-ai") {
+            console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
+            downloadedImageBuffer = await addDolphinAILogo(downloadedImageBuffer)
+          }
+          
+
+          
+          // Storage에 업로드
+          const fileName = generateUniqueFileName(userId, 'generated')
+          console.log("💾 Storage 업로드 중:", { fileName })
+          const { url: storageUrl, error: uploadError } = await uploadImageToStorage(downloadedImageBuffer, fileName)
+          
+          if (uploadError) {
+            console.log("❌ Storage 업로드 실패:", uploadError)
+            throw new Error(`Storage 업로드 실패: ${uploadError}`)
+          }
+          
+          generatedImageUrl = storageUrl
+          console.log("✅ Storage 업로드 완료:", { url: storageUrl?.substring(0, 50) + "..." })
+        } else if (imageData.b64_json) {
+          // Base64로 받은 경우 - 이미지 처리
+          console.log("📥 OpenAI에서 받은 base64 이미지 처리 중...")
+          let imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
+          
+          // 한국잡월드 레이아웃인 경우 로고 합성
+          if (layout === "korea-job-world") {
+            console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
+            imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
+          }
+          
+          // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
+          if (layout === "dolphin-ai") {
+            console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
+            imageBuffer = await addDolphinAILogo(imageBuffer)
+          }
+          
+
+          
+          // Storage에 업로드
+          const fileName = generateUniqueFileName(userId, 'generated')
+          console.log("💾 Storage 업로드 중:", { fileName })
+          const { url: storageUrl, error: uploadError } = await uploadImageToStorage(imageBuffer, fileName)
+          
+          if (uploadError) {
+            console.log("❌ Storage 업로드 실패:", uploadError)
+            throw new Error(`Storage 업로드 실패: ${uploadError}`)
+          }
+          
+          generatedImageUrl = storageUrl
+          console.log("✅ Storage 업로드 완료:", { url: storageUrl?.substring(0, 50) + "..." })
+        }
+      } catch (apiError: any) {
+        console.error("❌ OpenAI API 오류:", apiError)
+
+        // 대체 이미지 URL 사용
+        console.log("⚠️ OpenAI API 오류 발생, 대체 이미지 사용")
+        generatedImageUrl = TEST_IMAGE_URLS[job as keyof typeof TEST_IMAGE_URLS] || TEST_IMAGE_URLS.default
+      }
+
+      if (!generatedImageUrl) {
+        throw new Error("이미지 생성에 실패했습니다")
+      }
+
+      // 데이터베이스 업데이트 (완료 상태)
+      console.log("💾 작업 완료 상태로 업데이트 중...")
+      const { error: updateError } = await supabase
+        .from("generated_images")
+        .update({
+          image_url: generatedImageUrl,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", jobId)
+
+      if (updateError) {
+        console.log("❌ 상태 업데이트 실패:", updateError.message)
+        throw updateError
+      }
+
+      console.log("🎉 이미지 생성 완료:", { jobId })
       return NextResponse.json({
         success: true,
         jobId: jobId,
         imageId: jobId,
-        imageUrl: imageUrl,
+        imageUrl: generatedImageUrl,
         status: "completed",
         message: "이미지 생성이 완료되었습니다.",
         debug: {
           timestamp: new Date().toISOString(),
-          isBase64: imageUrl.startsWith("data:"),
-          urlLength: imageUrl.length,
-          urlPreview: imageUrl.substring(0, 100) + "..."
+          isBase64: generatedImageUrl.startsWith("data:"),
+          urlLength: generatedImageUrl.length,
+          urlPreview: generatedImageUrl.substring(0, 100) + "..."
         }
       })
-    } catch (imageError: any) {
-      console.error("이미지 생성 실패:", imageError)
+    } catch (error: any) {
+      console.error("❌ 이미지 생성 실패:", error)
       
-      return NextResponse.json(
-        {
-          success: false,
-          error: `이미지 생성에 실패했습니다: ${imageError.message || "알 수 없는 오류"}`,
-        },
-        { 
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        },
-      )
+      // 오류 상태로 업데이트
+      try {
+        await supabase
+          .from("generated_images")
+          .update({
+            status: "error",
+            error_message: error.message || "알 수 없는 오류",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", jobId)
+      } catch (dbError) {
+        console.error("❌ DB 상태 업데이트 실패:", dbError)
+      }
+
+      // 티켓 환불
+      try {
+        await supabase.rpc("refund_ticket", { user_id_param: userId })
+      } catch (refundError) {
+        console.error("❌ 티켓 환불 실패:", refundError)
+      }
+
+      throw error
     }
 
   } catch (error: any) {
@@ -401,6 +534,39 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
   }
 }
 
+// 이미지 전처리 및 품질 향상 함수
+async function enhanceImageQuality(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    console.log("🎨 이미지 품질 향상 처리 시작...")
+    
+    const enhanced = await sharp(imageBuffer)
+      .resize(1024, 1536, { 
+        fit: 'inside', 
+        withoutEnlargement: false,
+        kernel: sharp.kernel.lanczos3 // 고품질 리샘플링
+      })
+      .sharpen(1.0, 1.0, 2.0) // 이미지 선명도 향상 (sigma, flat, jagged)
+      .normalize() // 명암 대비 정규화
+      .modulate({
+        brightness: 1.02, // 약간의 밝기 증가
+        saturation: 1.05, // 약간의 채도 증가
+        hue: 0
+      })
+      .jpeg({ 
+        quality: 95,
+        progressive: true,
+        mozjpeg: true
+      })
+      .toBuffer()
+    
+    console.log("✅ 이미지 품질 향상 완료")
+    return enhanced
+  } catch (error) {
+    console.log("⚠️ 이미지 품질 향상 실패, 원본 사용:", error)
+    return imageBuffer
+  }
+}
+
 async function processImageGeneration(
   jobId: string, 
   photo: string, 
@@ -417,12 +583,15 @@ async function processImageGeneration(
     // Base64 데이터 URL에서 이미지 데이터 추출
     console.log("🖼️ 이미지 데이터 처리 중...")
     const base64Data = photo.split(",")[1]
-    const imageBuffer = Buffer.from(base64Data, "base64")
+    let imageBuffer = Buffer.from(base64Data, "base64")
+
+    // 이미지 품질 향상 전처리
+    imageBuffer = await enhanceImageQuality(imageBuffer)
 
     // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
-    const imageFile = new File([imageBuffer], "photo.png", { type: "image/png" })
+    const imageFile = new File([imageBuffer], "photo.jpg", { type: "image/jpeg" })
 
-    console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/png" })
+    console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/jpeg" })
 
     // OpenAI API를 사용하여 이미지 생성
     console.log("🤖 OpenAI API 호출 시작...")
@@ -457,7 +626,7 @@ async function processImageGeneration(
         console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
         const imageResponse = await fetch(imageData.url)
         const arrayBuffer = await imageResponse.arrayBuffer()
-        let downloadedImageBuffer: Buffer = Buffer.from(new Uint8Array(arrayBuffer))
+        let downloadedImageBuffer = Buffer.from(arrayBuffer as ArrayBuffer)
         
         // 한국잡월드 레이아웃인 경우 로고 합성
         if (layout === "korea-job-world") {
@@ -577,54 +746,58 @@ async function processImageGeneration(
 }
 
 function generatePrompt(age: string, gender: string, job: string, style: string, layout: string): string {
-  // 성별에 따른 특성 정의
+  // 성별에 따른 정확한 특성 정의
   let genderDescription = ""
+  let genderFeatures = ""
   switch (gender) {
     case "male":
-      genderDescription = "남성"
+      genderDescription = "한국인 남성"
+      genderFeatures = "자연스러운 남성적 얼굴 특징과 체형, 한국인 특유의 얼굴 구조와 피부톤을 유지하면서"
       break
     case "female":
-      genderDescription = "여성"
+      genderDescription = "한국인 여성"
+      genderFeatures = "자연스러운 여성적 얼굴 특징과 체형, 한국인 특유의 얼굴 구조와 피부톤을 유지하면서"
       break
     default:
-      genderDescription = ""
+      genderDescription = "한국인"
+      genderFeatures = "한국인 특유의 자연스러운 얼굴 구조와 피부톤을 유지하면서"
   }
 
-  // 나이에 따른 특성 정의
+  // 나이에 따른 상세한 특성 정의
   let ageDescription = ""
-  let faceAdjustment = ""
+  let ageSpecificFeatures = ""
   switch (age) {
     case "2years":
       ageDescription = "2살 아기"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "5years":
       ageDescription = "5살 어린이"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "teen":
       ageDescription = "10대 청소년"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "20s":
       ageDescription = "20대"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "30s":
       ageDescription = "30대"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "40s":
       ageDescription = "40대"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     case "60s":
       ageDescription = "60대"
-      faceAdjustment = ""
+      ageSpecificFeatures = ""
       break
     default:
-      ageDescription = "적절한 연령대 특성을 가진 한국인"
-      faceAdjustment = "자연스러운 얼굴 비율과 표정으로"
+      ageDescription = "적절한 연령대"
+      ageSpecificFeatures = "자연스럽고 건강한 얼굴, 한국인 특유의 얼굴 비율과 표정"
   }
 
   // 직업에 따른 상세한 특성 정의
@@ -632,8 +805,8 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   let environmentDescription = ""
   switch (job) {
     case "none":
-      jobDescription = "자연스러운 모습으로"
-      environmentDescription = "편안하고 자연스러운 배경에서"
+      jobDescription = "자연스럽고 품격있는 일반인의 모습으로"
+      environmentDescription = "깔끔하고 자연스러운 중성적 배경에서, 한국인다운 자연스러운 표정과 포즈로"
       break
     case "doctor":
       jobDescription = "의사"
@@ -681,8 +854,14 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   let renderingInstructions = ""
   switch (style) {
     case "realistic":
-      styleDescription = ""
-      renderingInstructions = "자연스러운 조명과 사실적인 피부 질감"
+      styleDescription = "극도로 사실적이고 고품질의 포토리얼리스틱 스타일로"
+      renderingInstructions = `DSLR 카메라로 촬영한 듯한 높은 해상도와 선명도, 
+      자연스러운 스튜디오 조명으로 얼굴의 입체감과 깊이감 강조,
+      피부의 자연스러운 질감과 모공까지 세밀하게 표현,
+      눈동자의 반사와 속눈썹의 섬세한 디테일,
+      머리카락의 개별 가닥까지 정교하게 렌더링,
+      한국인 특유의 자연스러운 피부톤과 얼굴 구조 정확히 재현,
+      프로페셔널 포트레이트 사진 수준의 품질로`
       break
     case "cartoon":
       styleDescription = "선명한 만화 스타일로, 과장된 특징과 밝은 색상, 깔끔한 선화를 가진"
@@ -733,14 +912,32 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       compositionInstructions = "균형 잡힌 요소와 주제에 대한 명확한 초점을 가진 전문적인 구성을 사용하여"
   }
 
-  // 최종 상세 프롬프트 조합 (gpt-image-1의 32,000자 한계 활용)
-  return `이 사람을 ${genderDescription} ${ageDescription} ${jobDescription} 모습으로 변환해주세요.
+  // 최종 상세 프롬프트 조합 - 얼굴 유사도와 퀄리티 극대화
+  return `MISSION: Transform this person into a ${genderDescription} ${ageDescription} ${jobDescription} while maintaining MAXIMUM facial similarity and Korean features.
 
-환경 및 배경: ${environmentDescription} 배치해주세요.
+CRITICAL REQUIREMENTS:
+1. FACIAL PRESERVATION: Maintain the original person's unique facial structure, eye shape, nose bridge, lip shape, and overall bone structure
+2. KOREAN IDENTITY: Preserve distinctly Korean facial features - skin tone, eye shape, facial proportions typical of Korean ethnicity
+3. GENDER ACCURACY: ${genderFeatures}
+4. AGE CHARACTERISTICS: ${ageSpecificFeatures}
 
-시각적 스타일: ${styleDescription} 이미지로 렌더링해주세요. ${renderingInstructions} 렌더링해주세요.
+TECHNICAL SPECIFICATIONS:
+- ${styleDescription} ${renderingInstructions}
+- Professional studio lighting with soft shadows for dimensional depth
+- Ultra-high resolution details: skin texture, individual hair strands, eye reflections
+- Color accuracy: Natural Korean skin tones, authentic hair colors
+- Sharp focus on facial features while maintaining natural background blur
 
-레이아웃 및 구성: 최종 구성은 ${layoutDescription} 형태여야 합니다. ${compositionInstructions} 구성해주세요.
+ENVIRONMENT: ${environmentDescription}
 
-최종 이미지는 이 사람의 고유한 얼굴 특성을 유지하면서 ${genderDescription} 특성에 맞게 변환해주세요. 선택한 성별에 따른 자연스러운 외모와 특징을 반영하되, 원본 얼굴의 기본적인 구조와 비율은 보존해주세요.`
+LAYOUT: ${layoutDescription} ${compositionInstructions}
+
+FORBIDDEN ELEMENTS:
+- Western facial features or bone structure
+- Unnatural skin tones or colors
+- Generic or template-like faces
+- Over-processed or artificial appearance
+- Loss of original facial identity
+
+OUTPUT QUALITY: Professional portrait photography standard, suitable for official documents or professional profiles.`
 }

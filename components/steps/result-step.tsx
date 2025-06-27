@@ -63,24 +63,16 @@ export function ResultStep({
       timestamp: new Date().toISOString()
     })
     
-    if (attemptCount < 3) {
-      // 3번까지 재시도
+    if (attemptCount < 3) { // 3번만 재시도
       setTimeout(() => {
         console.log(`🔄 이미지 로딩 재시도 (${attemptCount}/3)`)
         setImageLoadError(null)
-        // 이미지 요소 강제 리로드
-        const img = new Image()
-        img.onload = () => {
-          console.log("✅ 재시도 성공")
-          setImageLoadError(null)
+        // 단순 재시도 - 캐시버스터 없이
+        const imgElement = document.querySelector('img[alt="시간버스"]') as HTMLImageElement
+        if (imgElement && generatedImage) {
+          imgElement.src = generatedImage
         }
-        img.onerror = () => {
-          setImageLoadError(`이미지 로딩 실패 (시도 ${attemptCount}/3)`)
-        }
-        if (generatedImage) {
-          img.src = generatedImage
-        }
-      }, 1000 * attemptCount) // 지수적 백오프
+      }, 1000 * attemptCount) // 1초씩 증가
     } else {
       setImageLoadError("이미지를 로딩할 수 없습니다. 새로고침을 시도해주세요.")
     }
@@ -213,7 +205,7 @@ export function ResultStep({
             </div>
           </div>
                       <p className="text-lg font-medium text-purple-600">시간버스가 이동중이에요...</p>
-          <p className="text-purple-400 text-sm mt-2">백그라운드에서 처리 중입니다. 실시간으로 업데이트됩니다!</p>
+          <p className="text-purple-400 text-sm mt-2">최대 2분이 걸립니다.</p>
 
           <Button
             onClick={handleManualRefresh}
@@ -278,6 +270,7 @@ export function ResultStep({
                       className="w-full h-full object-contain transition-transform group-hover:scale-105"
                       onLoad={handleImageLoad}
                       onError={(e) => handleImageError(e)}
+                      loading="eager"
                       style={{ 
                         opacity: imageLoadAttempts > 0 ? 0.7 : 1,
                         transition: 'opacity 0.3s ease'

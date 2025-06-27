@@ -265,7 +265,7 @@ export function Wizard() {
   }
 
   return (
-    <Card className="p-6 shadow-lg rounded-3xl bg-white border-4 border-purple-300 relative overflow-hidden">
+    <Card className="p-8 shadow-xl rounded-3xl bg-white border-4 border-purple-300 relative overflow-hidden max-w-6xl mx-auto w-full">
       {/* 장식용 도형들 */}
       <div className="absolute -top-10 -right-10 w-20 h-20 rounded-full bg-yellow-300 opacity-50"></div>
       <div className="absolute -bottom-10 -left-10 w-20 h-20 rounded-full bg-blue-300 opacity-50"></div>
@@ -338,7 +338,7 @@ export function Wizard() {
         ))}
       </div>
 
-      <div className="min-h-[400px] flex flex-col justify-between relative z-10">
+      <div className="min-h-[500px] flex flex-col justify-between relative z-10">
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4 text-purple-600">{steps[currentStep].title}</h2>
           {steps[currentStep].component}

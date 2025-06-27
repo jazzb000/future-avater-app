@@ -73,24 +73,16 @@ export function ResultStep({
       timestamp: new Date().toISOString()
     })
     
-    if (attemptCount < 3) {
-      // 3번까지 재시도
+    if (attemptCount < 3) { // 3번만 재시도
       setTimeout(() => {
         console.log(`🔄 이미지 로딩 재시도 (${attemptCount}/3)`)
         setImageLoadError(null)
-        // 이미지 요소 강제 리로드
-        const img = new Image()
-        img.onload = () => {
-          console.log("✅ 재시도 성공")
-          setImageLoadError(null)
+        // 단순 재시도 - 캐시버스터 없이
+        const imgElement = document.querySelector('img[alt="현실화된 이미지"]') as HTMLImageElement
+        if (imgElement && generatedImage) {
+          imgElement.src = generatedImage
         }
-        img.onerror = () => {
-          setImageLoadError(`이미지 로딩 실패 (시도 ${attemptCount}/3)`)
-        }
-        if (generatedImage) {
-          img.src = generatedImage
-        }
-      }, 1000 * attemptCount) // 지수적 백오프
+      }, 1000 * attemptCount) // 1초씩 증가
     } else {
       setImageLoadError("이미지를 로딩할 수 없습니다. 새로고침을 시도해주세요.")
     }
@@ -315,14 +307,15 @@ export function ResultStep({
                   src={generatedImage || "/placeholder.svg"} 
                   alt="현실화된 이미지"
                   className="w-full h-full object-contain transition-transform group-hover:scale-105" 
-                      onLoad={handleImageLoad}
-                      onError={(e) => handleImageError(e)}
-                      style={{ 
-                        opacity: imageLoadAttempts > 0 ? 0.7 : 1,
-                        transition: 'opacity 0.3s ease'
-                      }}
-                    />
-                    {imageLoadAttempts > 0 && (
+                  onLoad={handleImageLoad}
+                  onError={(e) => handleImageError(e)}
+                  loading="eager"
+                  style={{ 
+                    opacity: imageLoadAttempts > 0 ? 0.7 : 1,
+                    transition: 'opacity 0.3s ease'
+                  }}
+                />
+                                    {imageLoadAttempts > 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="text-white text-center">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />

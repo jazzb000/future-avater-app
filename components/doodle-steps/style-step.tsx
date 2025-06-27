@@ -10,12 +10,6 @@ interface StyleStepProps {
 export function StyleStep({ updateSelection, currentStyle }: StyleStepProps) {
   const styles = [
     {
-      value: "photo",
-      label: "일반 사진 스타일",
-      icon: "📷",
-      description: "낙서를 자연스러운 사진처럼 변환합니다",
-    },
-    {
       value: "realistic",
       label: "사실적인 스타일",
       icon: "🖼️",

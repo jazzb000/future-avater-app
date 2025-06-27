@@ -103,6 +103,9 @@ export function DoodleWizard() {
       setCurrentStep(currentStep + 1)
       setIsGenerating(true)
       setError(null)
+      // 새로운 생성 시작 시 기존 이미지 초기화
+      setGeneratedImage(null)
+      setGeneratedImageId(null)
 
       try {
         console.log("🚀 API 요청 시작 (낙서현실화):", {
@@ -157,6 +160,7 @@ export function DoodleWizard() {
           console.log("✅ 낙서현실화 성공, 상태 업데이트 중...")
           setGeneratedImage(data.imageUrl)
           setGeneratedImageId(data.imageId)
+          setIsGenerating(false) // 시간버스와 동일하게 성공 시에만 로딩 해제
           
           // 이미지 URL 유효성 검증
           if (data.imageUrl) {
@@ -172,6 +176,7 @@ export function DoodleWizard() {
         } else {
           console.error("❌ API 응답 에러 (낙서현실화):", data.error)
           setError(data.error || "이미지 생성에 실패했습니다.")
+          setIsGenerating(false) // 에러 시에도 로딩 해제
         }
       } catch (error: any) {
         console.error("❌ 이미지 생성 중 오류 (낙서현실화):", {
@@ -192,8 +197,7 @@ export function DoodleWizard() {
         }
         
         setError(errorMessage)
-      } finally {
-        setIsGenerating(false)
+        setIsGenerating(false) // catch 블록에서도 로딩 해제
       }
     } else {
       handleNext()
@@ -212,7 +216,7 @@ export function DoodleWizard() {
   }
 
   return (
-    <Card className="p-6 shadow-lg rounded-3xl bg-white border-4 border-teal-300 relative overflow-hidden">
+    <Card className="p-8 shadow-xl rounded-3xl bg-white border-4 border-teal-300 relative overflow-hidden max-w-6xl mx-auto w-full">
       {/* 장식용 도형들 */}
       <div className="absolute -top-10 -right-10 w-20 h-20 rounded-full bg-yellow-300 opacity-50"></div>
       <div className="absolute -bottom-10 -left-10 w-20 h-20 rounded-full bg-blue-300 opacity-50"></div>
@@ -285,7 +289,7 @@ export function DoodleWizard() {
         ))}
       </div>
 
-      <div className="min-h-[400px] flex flex-col justify-between relative z-10">
+      <div className="min-h-[500px] flex flex-col justify-between relative z-10">
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4 text-teal-600">{steps[currentStep].title}</h2>
           {steps[currentStep].component}

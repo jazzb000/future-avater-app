@@ -159,9 +159,6 @@ export async function POST(req: Request) {
     console.log("🎭 스타일 프롬프트 생성 중...")
     let stylePrompt = ""
     switch (style) {
-      case "photo":
-        stylePrompt = "이 간단한 낙서를 실제 카메라로 찍은 것 같은 자연스럽고 사진적인 이미지로 변환해주세요. 자연스러운 조명과 사실적인 비율, 진정한 사진적 특성을 사용해주세요. 진짜 사진처럼 보이게 만들어주세요."
-        break
       case "realistic":
         stylePrompt = "이 간단한 낙서를 매우 상세하고 사진처럼 사실적인 이미지로 변환해주세요. 핵심 개념과 구성을 유지하면서 사실적인 질감, 조명, 그림자, 세밀한 디테일을 추가해주세요. 전문적인 사진처럼 보이게 만들어주세요."
         break
