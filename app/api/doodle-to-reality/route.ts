@@ -206,7 +206,7 @@ export async function POST(req: Request) {
       prompt: stylePrompt,
       n: 1,
       size: "1536x1024",
-      quality: "medium", // 최고 품질로 변경
+      quality: "low", // 최고 품질로 변경
       output_format: "png",
       background: "auto",
     })
