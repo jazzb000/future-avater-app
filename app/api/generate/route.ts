@@ -752,11 +752,11 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   switch (gender) {
     case "male":
       genderDescription = "한국인 남성"
-      genderFeatures = "자연스러운 남성적 얼굴 특징과 체형, 한국인 특유의 얼굴 구조와 피부톤을 유지하면서"
+      genderFeatures = ""
       break
     case "female":
       genderDescription = "한국인 여성"
-      genderFeatures = "자연스러운 여성적 얼굴 특징과 체형, 한국인 특유의 얼굴 구조와 피부톤을 유지하면서"
+      genderFeatures = ""
       break
     default:
       genderDescription = "한국인"
@@ -860,23 +860,23 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       피부의 자연스러운 질감과 모공까지 세밀하게 표현,
       눈동자의 반사와 속눈썹의 섬세한 디테일,
       머리카락의 개별 가닥까지 정교하게 렌더링,
-      한국인 특유의 자연스러운 피부톤과 얼굴 구조 정확히 재현,
+      이 사진의 얼굴 특징을 가지면서도 한국인 특유의 자연스러운 피부톤과 얼굴 구조 정확히 재현,
       프로페셔널 포트레이트 사진 수준의 품질로`
       break
     case "cartoon":
-      styleDescription = "선명한 만화 스타일로, 과장된 특징과 밝은 색상, 깔끔한 선화를 가진"
+      styleDescription = "선명한 만화 스타일로, 이 사진의 얼굴 특징을 가지면서도 과장된 특징과 밝은 색상, 깔끔한 선화를 가진"
       renderingInstructions = "전문 애니메이션의 굵은 윤곽선, 단순화된 형태, 채도 높은 색상을 사용하여"
       break
     case "anime":
-      styleDescription = "일본 애니메이션 스타일로, 크고 표현력 있는 눈과 상세한 머리카락, 특징적인 애니메 비율을 가진"
+      styleDescription = "이 사진의 얼굴 특징을 가지면서도 일본 애니메이션 스타일로"
       renderingInstructions = "애니메 음영 기법과 셀 셰이딩 효과, 전형적인 애니메 색상 팔레트를 적용하여"
       break
     case "pixar":
-      styleDescription = "픽사 3D 애니메이션 스타일로, 상세한 텍스처와 부드러운 조명, 특징적인 픽사 캐릭터 디자인을 가진"
+      styleDescription = "픽사 3D 애니메이션 스타일로, 이 사진의 얼굴 특징을 가지면서도 상세한 텍스처와 부드러운 조명, 특징적인 픽사 캐릭터 디자인을 가진"
       renderingInstructions = "서브서피스 스캐터링과 사실적인 재질, 픽사 특유의 따뜻한 조명으로 3D 렌더링하여"
       break
     case "comic":
-      styleDescription = "만화책 캐릭터 스타일로, 굵은 선과 극적인 그림자, 선명한 만화책 색상을 가진"
+      styleDescription = "만화책 캐릭터 스타일로, 이 사진의 얼굴 특징을 가지면서도 굵은 선과 극적인 그림자, 선명한 만화책 색상을 가진"
       renderingInstructions = "하프톤 패턴과 굵은 윤곽선, 역동적인 포즈를 포함한 만화책 아트 기법을 적용하여"
       break
     case "poster":
@@ -884,7 +884,7 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       renderingInstructions = "영화적 조명과 전문 사진 기법, 영화 포스터 구성을 사용하여"
       break
     case "caricature":
-      styleDescription = "캐리커쳐 스타일로, 과장된 얼굴 특징을 가지면서도 인식 가능하고 전문적인 외모를 유지하는"
+      styleDescription = "캐리커쳐 스타일로, 이 사진의 과장된 얼굴 특징을 가지면서도 인식 가능하고 전문적인 외모를 유지하는"
       renderingInstructions = "전문적인 맥락과 품위를 유지하면서 특징적인 부분을 강조하여"
       break
     default:
@@ -918,8 +918,6 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
 CRITICAL REQUIREMENTS:
 1. FACIAL PRESERVATION: Maintain the original person's unique facial structure, eye shape, nose bridge, lip shape, and overall bone structure
 2. KOREAN IDENTITY: Preserve distinctly Korean facial features - skin tone, eye shape, facial proportions typical of Korean ethnicity
-3. GENDER ACCURACY: ${genderFeatures}
-4. AGE CHARACTERISTICS: ${ageSpecificFeatures}
 
 TECHNICAL SPECIFICATIONS:
 - ${styleDescription} ${renderingInstructions}
@@ -929,8 +927,6 @@ TECHNICAL SPECIFICATIONS:
 - Sharp focus on facial features while maintaining natural background blur
 
 ENVIRONMENT: ${environmentDescription}
-
-LAYOUT: ${layoutDescription} ${compositionInstructions}
 
 FORBIDDEN ELEMENTS:
 - Western facial features or bone structure
