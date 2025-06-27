@@ -805,8 +805,8 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   let environmentDescription = ""
   switch (job) {
     case "none":
-      jobDescription = "자연스럽고 품격있는 일반인의 모습으로"
-      environmentDescription = "깔끔하고 자연스러운 중성적 배경에서, 한국인다운 자연스러운 표정과 포즈로"
+      jobDescription = ""
+      environmentDescription = ""
       break
     case "doctor":
       jobDescription = "의사"
@@ -914,6 +914,7 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
 
   // 최종 상세 프롬프트 조합 - 얼굴 유사도와 퀄리티 극대화
   return `MISSION: Transform this person into a ${genderDescription} ${ageDescription} ${jobDescription} while maintaining MAXIMUM facial similarity and Korean features.
+  ${ageDescription} 이 나이대라는 것을 명심해주세요.
 
 CRITICAL REQUIREMENTS:
 1. FACIAL PRESERVATION: Maintain the original person's unique facial structure, eye shape, nose bridge, lip shape, and overall bone structure

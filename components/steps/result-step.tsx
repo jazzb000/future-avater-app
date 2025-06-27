@@ -205,16 +205,7 @@ export function ResultStep({
             </div>
           </div>
                       <p className="text-lg font-medium text-purple-600">시간버스가 이동중이에요...</p>
-          <p className="text-purple-400 text-sm mt-2">최대 2분이 걸립니다.</p>
-
-          <Button
-            onClick={handleManualRefresh}
-            variant="outline"
-            size="sm"
-            className="mt-4 rounded-full border-2 border-purple-300 hover:bg-purple-100"
-          >
-            새로고침
-          </Button>
+          <p className="text-purple-400 text-sm mt-2">이미지 생성에는 최대 2분 정도 소요될 수 있습니다</p>
         </div>
       ) : generatedImage ? (
         <div className="space-y-4">
@@ -247,19 +238,7 @@ export function ResultStep({
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
                     <div className="text-center p-4">
                       <p className="text-sm mb-2">⚠️ 이미지 로딩 오류</p>
-                      <p className="text-xs mb-4">{imageLoadError}</p>
-                      <Button
-                        onClick={() => {
-                          setImageLoadError(null)
-                          setImageLoadAttempts(0)
-                          handleManualRefresh()
-                        }}
-                        size="sm"
-                        variant="outline"
-                        className="text-xs"
-                      >
-                        다시 시도
-                      </Button>
+                      <p className="text-xs">{imageLoadError}</p>
                     </div>
                   </div>
                 ) : (
@@ -369,7 +348,7 @@ export function ResultStep({
             padding: 0
           }}
         >
-          <div className="relative max-w-[35vw] max-h-[100vh] w-auto h-auto">
+          <div className="relative max-w-[28vw] max-h-[100vh] w-auto h-auto">
             <img
               src={fullscreenImage}
               alt="전체화면 이미지"

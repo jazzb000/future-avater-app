@@ -225,34 +225,12 @@ export function ResultStep({
               )}
             </div>
           )}
-
-          <Button
-            onClick={handleManualRefresh}
-            variant="outline"
-            size="sm"
-            className="mt-4 rounded-full border-2 border-teal-300 hover:bg-teal-100"
-            disabled={statusLoading}
-          >
-            {statusLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            새로고침
-          </Button>
         </div>
       ) : imageStatus?.status === 'error' || statusError ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-red-500 text-center">
             <p className="text-lg font-medium mb-2">이미지 생성 중 오류가 발생했습니다</p>
             <p className="text-sm">{imageStatus?.errorMessage || statusError}</p>
-            <Button
-              onClick={handleManualRefresh}
-              variant="outline"
-              className="mt-4"
-            >
-              다시 시도
-            </Button>
           </div>
         </div>
       ) : generatedImage ? (
@@ -286,19 +264,7 @@ export function ResultStep({
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
                     <div className="text-center p-4">
                       <p className="text-sm mb-2">⚠️ 이미지 로딩 오류</p>
-                      <p className="text-xs mb-4">{imageLoadError}</p>
-                      <Button
-                        onClick={() => {
-                          setImageLoadError(null)
-                          setImageLoadAttempts(0)
-                          handleManualRefresh()
-                        }}
-                        size="sm"
-                        variant="outline"
-                        className="text-xs"
-                      >
-                        다시 시도
-                      </Button>
+                      <p className="text-xs">{imageLoadError}</p>
                     </div>
                   </div>
                 ) : (
@@ -408,7 +374,7 @@ export function ResultStep({
             padding: 0
           }}
         >
-          <div className="relative max-w-[80vw] max-h-[90vh] w-auto h-auto">
+          <div className="relative max-w-[60vw] max-h-[100vh] w-auto h-auto">
             <img
               src={fullscreenImage}
               alt="전체화면 이미지"
