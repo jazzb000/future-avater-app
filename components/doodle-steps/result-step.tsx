@@ -41,6 +41,28 @@ export function ResultStep({
   
   const [generatedImage, setLocalGeneratedImage] = useState<string | null>(image)
 
+  // 이미지 공개 상태 가져오기
+  useEffect(() => {
+    const fetchImagePublicStatus = async () => {
+      if (!imageId) return
+      
+      try {
+        const { data, error } = await supabase
+          .from("doodle_images")
+          .select("is_public")
+          .eq("id", imageId)
+          .single()
+        
+        if (error) throw error
+        setIsPublic(data?.is_public || false)
+      } catch (error) {
+        console.error("이미지 공개 상태를 가져오는 중 오류:", error)
+      }
+    }
+
+    fetchImagePublicStatus()
+  }, [imageId])
+
   // 이미지 상태가 업데이트되면 로컬 상태 동기화
   useEffect(() => {
     if (imageStatus) {
@@ -172,18 +194,30 @@ export function ResultStep({
   const handleTogglePublic = async () => {
     if (!user || !imageId) return
 
-    try {
-      setIsSaving(true)
-      const { error } = await supabase
-        .from("doodle_images")
-        .update({ is_public: !isPublic })
-        .eq("id", imageId)
-        .eq("user_id", user.id)
+    setIsSaving(true)
 
-      if (error) throw error
-      setIsPublic(!isPublic)
+    try {
+      const response = await fetch(`/api/user/images/${imageId}/toggle-public`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          isPublic: !isPublic,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsPublic(!isPublic)
+      } else {
+        throw new Error(data.error || "이미지 공개 설정 변경에 실패했습니다.")
+      }
     } catch (error) {
       console.error("이미지 공개 설정 변경 중 오류가 발생했습니다:", error)
+      alert("이미지 공개 설정 변경에 실패했습니다. 다시 시도해주세요.")
     } finally {
       setIsSaving(false)
     }
