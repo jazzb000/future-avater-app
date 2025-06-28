@@ -361,20 +361,21 @@ export default function Home() {
       </div>
 
              {/* 플로팅 액션 버튼 - 하단 중앙 배치 */}
-       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 z-50">
+       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3 z-50">
          {/* 시간버스 버튼 */}
          <div className="relative group">
            <Link href="/future-me">
              <Button
                size="lg"
-               className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+               className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
              >
-               <Sparkles className="h-7 w-7" />
+               <Sparkles className="h-5 w-5" />
+               <span className="font-medium">시간버스</span>
              </Button>
            </Link>
            
            {/* 설명 팝업 */}
-           <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+           <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
              <div className="bg-purple-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
                <div className="font-medium">시간버스 🚌</div>
                <div className="text-xs text-purple-200">다양한 나이의 내 모습 생성</div>
@@ -382,21 +383,22 @@ export default function Home() {
                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-purple-600"></div>
              </div>
            </div>
-              </div>
+         </div>
 
          {/* 낙서 현실화 버튼 */}
          <div className="relative group">
-              <Link href="/doodle-to-reality">
+           <Link href="/doodle-to-reality">
              <Button
                size="lg"
-               className="w-16 h-16 rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+               className="px-6 py-3 rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
              >
-               <Pencil className="h-7 w-7" />
-                </Button>
-              </Link>
+               <Pencil className="h-5 w-5" />
+               <span className="font-medium">낙서현실화</span>
+             </Button>
+           </Link>
            
            {/* 설명 팝업 */}
-           <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+           <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
              <div className="bg-teal-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
                <div className="font-medium">낙서현실화 🎨</div>
                <div className="text-xs text-teal-200">낙서를 현실적인 이미지로</div>
