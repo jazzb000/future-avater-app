@@ -47,7 +47,7 @@ export function Wizard() {
     gender: null,
     job: null,
     style: null,
-    layout: null,
+    layout: "dolphin-ai", // 기본값으로 돌핀인캘리 설정
   })
   const router = useRouter()
 
@@ -88,18 +88,19 @@ export function Wizard() {
       title: "스타일 고르기",
       component: <StyleStep updateSelection={updateSelection} currentStyle={selections.style} />,
     },
-    {
-      id: 6,
-      title: "레이아웃 선택하기",
-      component: <LayoutStep updateSelection={updateSelection} currentLayout={selections.layout} />,
-    },
+    // 임시로 레이아웃 단계 주석처리 - 기본값으로 돌핀인캘리 사용
+    // {
+    //   id: 6,
+    //   title: "레이아웃 선택하기",
+    //   component: <LayoutStep updateSelection={updateSelection} currentLayout={selections.layout} />,
+    // },
   ]
 
   // 명함 스타일일 때 이름 입력 단계 추가
   const steps: WizardStep[] = [
     ...baseSteps,
     {
-      id: 7,
+      id: 6,
       title: "시간버스!",
       component: (
         <ResultStep
@@ -256,8 +257,6 @@ export function Wizard() {
       case 4:
         return !selections.style
       case 5:
-        return !selections.layout
-      case 6:
         return false
       default:
         return false
@@ -355,11 +354,11 @@ export function Wizard() {
           </Button>
 
           <Button
-            onClick={currentStep === steps.length - 2 ? handleGenerate : handleNext}
+            onClick={currentStep === 4 ? handleGenerate : handleNext}
             disabled={isNextDisabled() || isGenerating}
             className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
           >
-            {currentStep === steps.length - 2 ? (
+            {currentStep === 4 ? (
               "시간버스 타기"
             ) : (
               <>

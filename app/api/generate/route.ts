@@ -245,13 +245,7 @@ export async function POST(req: Request) {
           console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
           const imageResponse = await fetch(imageData.url)
           const arrayBuffer = await imageResponse.arrayBuffer()
-          let downloadedImageBuffer = Buffer.from(arrayBuffer as ArrayBuffer)
-          
-          // 한국잡월드 레이아웃인 경우 로고 합성
-          if (layout === "korea-job-world") {
-            console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
-            downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
-          }
+          let downloadedImageBuffer = Buffer.from(arrayBuffer)
           
           // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
           if (layout === "dolphin-ai") {
@@ -277,12 +271,6 @@ export async function POST(req: Request) {
           // Base64로 받은 경우 - 이미지 처리
           console.log("📥 OpenAI에서 받은 base64 이미지 처리 중...")
           let imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
-          
-          // 한국잡월드 레이아웃인 경우 로고 합성
-          if (layout === "korea-job-world") {
-            console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
-            imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
-          }
           
           // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
           if (layout === "dolphin-ai") {
@@ -626,13 +614,7 @@ async function processImageGeneration(
         console.log("📥 OpenAI에서 받은 이미지 URL 다운로드 중...")
         const imageResponse = await fetch(imageData.url)
         const arrayBuffer = await imageResponse.arrayBuffer()
-        let downloadedImageBuffer = Buffer.from(arrayBuffer as ArrayBuffer)
-        
-        // 한국잡월드 레이아웃인 경우 로고 합성
-        if (layout === "korea-job-world") {
-          console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
-          downloadedImageBuffer = await addKoreaJobWorldLogo(downloadedImageBuffer)
-        }
+        let downloadedImageBuffer = Buffer.from(arrayBuffer)
         
         // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
         if (layout === "dolphin-ai") {
@@ -658,12 +640,6 @@ async function processImageGeneration(
         // Base64로 받은 경우 - 이미지 처리
         console.log("📥 OpenAI에서 받은 base64 이미지 처리 중...")
         let imageBuffer = base64ToBuffer(`data:image/png;base64,${imageData.b64_json}`)
-        
-        // 한국잡월드 레이아웃인 경우 로고 합성
-        if (layout === "korea-job-world") {
-          console.log("🏢 한국잡월드 레이아웃 감지 - 로고 합성 진행")
-          imageBuffer = await addKoreaJobWorldLogo(imageBuffer)
-        }
         
         // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
         if (layout === "dolphin-ai") {

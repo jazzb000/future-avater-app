@@ -73,12 +73,12 @@ export function NameStep({ updateSelection, currentName, currentJob }: NameStepP
                       {jobKorean}
                     </div>
                     
-                    {/* 한국잡월드 로고 영역 */}
-                    <div className="flex items-end justify-start">
+                    {/* 한국잡월드 로고 영역 - 임시 주석처리 */}
+                    {/* <div className="flex items-end justify-start">
                       <div className="text-xs text-blue-600 font-semibold">
                         🌟 Korea JobWorld
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>

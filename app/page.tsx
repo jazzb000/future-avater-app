@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,30 +29,38 @@ export default function Home() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [page, setPage] = useState(1)
+  const [avatarPage, setAvatarPage] = useState(1)
+  const [doodlePage, setDoodlePage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
+  // 중복 제거 헬퍼 함수
+  const removeDuplicates = useCallback((newImages: GalleryImage[], existingImages: GalleryImage[]) => {
+    const existingIds = new Set(existingImages.map(img => `${img.type}-${img.id}`))
+    return newImages.filter(img => !existingIds.has(`${img.type}-${img.id}`))
+  }, [])
+
   // 두 가지 타입의 이미지를 모두 가져오기
-  const fetchImages = async (pageNum: number = 1, reset: boolean = false) => {
+  const fetchImages = useCallback(async (reset: boolean = false) => {
     try {
       if (reset) {
         setLoading(true)
-        setPage(1)
+        setAvatarPage(1)
+        setDoodlePage(1)
       } else {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 6개씩 가져오기 (총 12개)
+      // 각 타입별로 페이지당 6개씩 가져오기
       const limit = 6
-      const avatarPage = Math.ceil(pageNum / 2)
-      const doodlePage = Math.ceil(pageNum / 2)
+      const currentAvatarPage = reset ? 1 : avatarPage
+      const currentDoodlePage = reset ? 1 : doodlePage
       
       // 시간버스 이미지 가져오기
-      const avatarResponse = await fetch(`/api/gallery?type=avatar&limit=${limit}&page=${avatarPage}&filter=latest`)
+      const avatarResponse = await fetch(`/api/gallery?type=avatar&limit=${limit}&page=${currentAvatarPage}&filter=latest`)
       const avatarData = await avatarResponse.json()
       
       // 낙서현실화 이미지 가져오기  
-      const doodleResponse = await fetch(`/api/gallery?type=doodle&limit=${limit}&page=${doodlePage}&filter=latest`)
+      const doodleResponse = await fetch(`/api/gallery?type=doodle&limit=${limit}&page=${currentDoodlePage}&filter=latest`)
       const doodleData = await doodleResponse.json()
 
       // 두 데이터를 합치고 타입 구분하여 섞기
@@ -66,7 +74,11 @@ export default function Home() {
       if (reset) {
         setImages(newImages)
       } else {
-        setImages(prev => [...prev, ...newImages])
+        // 중복 제거 후 추가
+        setImages(prev => {
+          const uniqueNewImages = removeDuplicates(newImages, prev)
+          return [...prev, ...uniqueNewImages]
+        })
       }
 
       // 더 불러올 데이터가 있는지 확인
@@ -80,11 +92,55 @@ export default function Home() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }
+  }, [avatarPage, doodlePage, removeDuplicates])
 
+  // 초기 로딩
   useEffect(() => {
-    fetchImages()
+    fetchImages(true)
   }, [])
+
+  // 더 많은 이미지 로드 (교대로 아바타와 낙서 페이지 증가)
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      // 아바타와 낙서를 교대로 로드
+      if (avatarPage <= doodlePage) {
+        setAvatarPage(prev => prev + 1)
+      } else {
+        setDoodlePage(prev => prev + 1)
+      }
+      // fetchImages 호출을 setTimeout으로 지연시켜 상태 업데이트 후 실행
+      setTimeout(() => fetchImages(false), 0)
+    }
+  }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
+
+  // 스크롤 이벤트 리스너 (throttling 적용)
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null
+
+    const handleScroll = () => {
+      if (timeoutId) return
+
+      timeoutId = setTimeout(() => {
+        if (
+          window.innerHeight + document.documentElement.scrollTop + 800 >= 
+          document.documentElement.offsetHeight &&
+          !loadingMore &&
+          hasMore
+        ) {
+          loadMore()
+        }
+        timeoutId = null
+      }, 100)
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [loadMore])
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
@@ -251,18 +307,30 @@ export default function Home() {
                })}
              </div>
 
-            {/* 더보기 링크 */}
-            <div className="text-center mt-8">
-              <Link href="/gallery">
-                <Button 
-                  variant="outline" 
-                  className="rounded-full border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6"
-                >
-                  더 많은 작품 보기
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+            {/* 로딩 더 보기 스피너 */}
+            {loadingMore && (
+              <div className="text-center mt-8">
+                <div className="flex justify-center items-center gap-2 text-gray-600">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                  <span>더 많은 작품을 불러오는 중...</span>
+                </div>
+              </div>
+            )}
+
+            {/* 더보기 링크 - 더 이상 로드할 데이터가 없을 때만 표시 */}
+            {!hasMore && !loadingMore && (
+              <div className="text-center mt-8">
+                <Link href="/gallery">
+                  <Button 
+                    variant="outline" 
+                    className="rounded-full border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6"
+                  >
+                    갤러리에서 더 많은 작품 보기
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
           </>
         ) : (
           <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-gray-200">
