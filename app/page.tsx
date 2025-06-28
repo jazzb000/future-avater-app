@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, Pencil, Plus, ArrowRight, Clock, Palette, User } from "lucide-react"
+import { Sparkles, Pencil, Plus, Clock, Palette, User } from "lucide-react"
 
 type GalleryImage = {
   id: string
@@ -238,9 +238,6 @@ export default function Home() {
              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                {images.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
-                 const detailPath = image.type === 'doodle' 
-                   ? `/doodle-gallery/${image.id}` 
-                   : `/gallery/${image.id}`
                  
                  return (
                    <div key={`${image.type}-${image.id}`} className="break-inside-avoid mb-4">
@@ -317,18 +314,12 @@ export default function Home() {
               </div>
             )}
 
-            {/* 더보기 링크 - 더 이상 로드할 데이터가 없을 때만 표시 */}
+            {/* 더 이상 로드할 데이터가 없을 때 메시지 */}
             {!hasMore && !loadingMore && (
               <div className="text-center mt-8">
-                <Link href="/gallery">
-                  <Button 
-                    variant="outline" 
-                    className="rounded-full border-2 border-purple-300 text-purple-600 hover:bg-purple-50 px-6"
-                  >
-                    갤러리에서 더 많은 작품 보기
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <div className="text-gray-500 text-sm">
+                  모든 작품을 확인했습니다 ✨
+                </div>
               </div>
             )}
           </>

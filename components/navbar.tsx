@@ -46,9 +46,6 @@ export function Navbar() {
             <Link href="/doodle-to-reality" className="text-teal-600 hover:text-teal-800">
               낙서 현실화
             </Link>
-            <Link href="/gallery" className="text-gray-600 hover:text-gray-800">
-              갤러리
-            </Link>
           </div>
         </div>
 
@@ -94,12 +91,6 @@ export function Navbar() {
                       <DropdownMenuItem>
                         <Pencil className="mr-2 h-4 w-4" />
                         <span>낙서 현실화</span>
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/gallery">
-                      <DropdownMenuItem>
-                        <ImageIcon className="mr-2 h-4 w-4" />
-                        <span>갤러리</span>
                       </DropdownMenuItem>
                     </Link>
                     <DropdownMenuItem disabled className="cursor-not-allowed opacity-50">
@@ -162,15 +153,6 @@ export function Navbar() {
                     >
                       <Pencil className="h-5 w-5" />
                       <span className="font-medium">낙서 현실화</span>
-                    </Link>
-
-                    <Link 
-                      href="/gallery" 
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-gray-800"
-                      onClick={handleMobileMenuClose}
-                    >
-                      <ImageIcon className="h-5 w-5" />
-                      <span className="font-medium">갤러리</span>
                     </Link>
                   </div>
 

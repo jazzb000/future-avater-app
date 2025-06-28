@@ -293,11 +293,6 @@ export default function ProfilePage() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold text-purple-600">내가 생성한 이미지</h2>
-              <Link href="/gallery">
-                <Button variant="outline" className="rounded-full border-2 border-purple-300 hover:bg-purple-100">
-                  갤러리 보기
-                </Button>
-              </Link>
             </div>
 
             {images.length === 0 ? (
