@@ -26,13 +26,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       data: { user },
     } = await supabase.auth.getUser()
 
-    // Increment view count
-    if (type === "doodle") {
-      await supabase.rpc("increment_doodle_view", { doodle_id_param: imageId })
-    } else {
-      await supabase.rpc("increment_image_view", { image_id_param: imageId })
-    }
-
     let imageData,
       commentsData,
       likesCount,
@@ -91,17 +84,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
       }
 
-      // Get view count
-      const { data: viewData, error: viewError } = await supabase
-        .from("doodle_views")
-        .select("view_count")
-        .eq("doodle_id", imageId)
-        .single()
-
-      if (viewError && viewError.code !== "PGRST116") {
-        console.error("Error fetching doodle views:", viewError)
-      }
-
       imageData = doodle
       commentsData = comments || []
       likesCount = likes || 0
@@ -158,17 +140,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         }
       }
 
-      // Get view count
-      const { data: viewData, error: viewError } = await supabase
-        .from("image_views")
-        .select("view_count")
-        .eq("image_id", imageId)
-        .single()
-
-      if (viewError && viewError.code !== "PGRST116") {
-        console.error("Error fetching image views:", viewError)
-      }
-
       imageData = image
       commentsData = comments || []
       likesCount = likes || 0
@@ -180,7 +151,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       comments: commentsData,
       likes: likesCount,
       userLiked,
-      views: imageData.views_count || 0,
       type,
     })
   } catch (error) {

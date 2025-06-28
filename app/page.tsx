@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles, Pencil, Plus, ArrowRight, Clock, Palette, Eye, User } from "lucide-react"
+import { Sparkles, Pencil, Plus, ArrowRight, Clock, Palette, User } from "lucide-react"
 
 type GalleryImage = {
   id: string
@@ -20,29 +20,39 @@ type GalleryImage = {
   profiles?: {
     username: string
   }
-  likes_count: number
-  comments_count: number
-  views_count: number
   type: 'avatar' | 'doodle'
 }
 
 export default function Home() {
   const [images, setImages] = useState<GalleryImage[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   // 두 가지 타입의 이미지를 모두 가져오기
-  const fetchImages = async () => {
+  const fetchImages = async (pageNum: number = 1, reset: boolean = false) => {
     try {
-      setLoading(true)
+      if (reset) {
+        setLoading(true)
+        setPage(1)
+      } else {
+        setLoadingMore(true)
+      }
+      
+      // 각 타입별로 페이지당 6개씩 가져오기 (총 12개)
+      const limit = 6
+      const avatarPage = Math.ceil(pageNum / 2)
+      const doodlePage = Math.ceil(pageNum / 2)
       
       // 시간버스 이미지 가져오기
-      const avatarResponse = await fetch('/api/gallery?type=avatar&limit=8&filter=latest')
+      const avatarResponse = await fetch(`/api/gallery?type=avatar&limit=${limit}&page=${avatarPage}&filter=latest`)
       const avatarData = await avatarResponse.json()
       
       // 낙서현실화 이미지 가져오기  
-      const doodleResponse = await fetch('/api/gallery?type=doodle&limit=8&filter=latest')
+      const doodleResponse = await fetch(`/api/gallery?type=doodle&limit=${limit}&page=${doodlePage}&filter=latest`)
       const doodleData = await doodleResponse.json()
 
       // 두 데이터를 합치고 타입 구분하여 섞기
@@ -50,15 +60,25 @@ export default function Home() {
       const doodleImages = doodleData.success ? doodleData.images.map((img: any) => ({ ...img, type: 'doodle' })) : []
       
       // 두 배열을 합치고 날짜순으로 정렬
-      const allImages = [...avatarImages, ...doodleImages]
+      const newImages = [...avatarImages, ...doodleImages]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 12) // 최대 12개만 표시
 
-      setImages(allImages)
+      if (reset) {
+        setImages(newImages)
+      } else {
+        setImages(prev => [...prev, ...newImages])
+      }
+
+      // 더 불러올 데이터가 있는지 확인
+      const avatarHasMore = avatarData.success && avatarData.images.length === limit
+      const doodleHasMore = doodleData.success && doodleData.images.length === limit
+      setHasMore(avatarHasMore || doodleHasMore)
+      
     } catch (error) {
       console.error('이미지를 가져오는 중 오류가 발생했습니다:', error)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
@@ -203,11 +223,7 @@ export default function Home() {
                              )}
                            </Badge>
 
-                           {/* 조회수 */}
-                           <div className="absolute top-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full flex items-center z-10">
-                             <Eye className="h-3 w-3 mr-1" />
-                             {image.views_count}
-                           </div>
+
 
                            {/* 하단 정보 */}
                            <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
@@ -336,10 +352,7 @@ export default function Home() {
                      </>
                    )}
                  </Badge>
-                 <div className="flex items-center text-sm text-gray-600">
-                   <Eye className="h-4 w-4 mr-1" />
-                   {selectedImage.views_count}
-                 </div>
+
                </div>
                <Button
                  variant="ghost"

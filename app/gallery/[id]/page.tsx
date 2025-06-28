@@ -61,7 +61,7 @@ export default function ImageDetailPage() {
         setLoading(true)
         
         // 이미지 조회수 증가
-        await supabase.rpc("increment_image_view", { image_id_param: imageId })
+  
         
         // 이미지 상세 정보 가져오기
         const { data: imageData, error: imageError } = await supabase

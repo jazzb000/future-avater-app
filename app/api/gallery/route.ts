@@ -70,16 +70,11 @@ export async function GET(req: Request) {
       }
 
       // 정렬 적용
-      switch (filter) {
-        case "latest":
-          query = query.order("created_at", { ascending: false })
-          break
-        case "popular":
-          query = query.order("likes_count", { ascending: false }).order("created_at", { ascending: false })
-          break
-        case "views":
-          query = query.order("views_count", { ascending: false }).order("created_at", { ascending: false })
-          break
+      if (filter === "popular") {
+        query = query.order("created_at", { ascending: false })
+      } else {
+        // 기본값: latest
+        query = query.order("created_at", { ascending: false })
       }
     } else {
       // 아바타 이미지 쿼리
@@ -94,10 +89,7 @@ export async function GET(req: Request) {
     style, 
     created_at,
     user_id,
-    is_public,
-    likes_count: image_likes (count),
-    comments_count: image_comments (count),
-    views_count: image_views (view_count)
+    is_public
   `,
           { count: "exact" },
         )
@@ -115,16 +107,11 @@ export async function GET(req: Request) {
       }
 
       // 정렬 적용
-      switch (filter) {
-        case "latest":
-          query = query.order("created_at", { ascending: false })
-          break
-        case "popular":
-          query = query.order("likes_count", { ascending: false }).order("created_at", { ascending: false })
-          break
-        case "views":
-          query = query.order("views_count", { ascending: false }).order("created_at", { ascending: false })
-          break
+      if (filter === "popular") {
+        query = query.order("created_at", { ascending: false })
+      } else {
+        // 기본값: latest
+        query = query.order("created_at", { ascending: false })
       }
     }
 
@@ -144,14 +131,7 @@ export async function GET(req: Request) {
     console.log(`🔍 갤러리 API 호출 - 타입: ${type}, 필터: ${filter}, 페이지: ${page}`)
     console.log(`📊 결과 개수: ${data?.length || 0}, 전체: ${count}`)
     
-    if (type === "doodle" && data) {
-      console.log(`🎨 낙서현실화 이미지 데이터:`, data.map((item: any) => ({
-        id: item.id,
-        is_public: item.is_public,
-        style: item.style,
-        user_id: item.user_id
-      })))
-    }
+
 
     if (error) {
       console.error(`❌ 갤러리 API 오류:`, error)
@@ -164,18 +144,15 @@ export async function GET(req: Request) {
       )
     }
 
-    // 데이터 가공 (간단한 형태로 변환)
+    // 데이터 가공 (사용자 정보만 추가)
     const processedData = data?.map((item: any) => ({
       ...item,
       profiles: { username: "사용자" }, // 기본 사용자 이름 설정
-      likes_count: 0,
-      comments_count: 0,
-      views_count: 0,
     }))
 
     // 사용자 ID가 있는 이미지에 대해 프로필 정보 가져오기
     if (processedData && processedData.length > 0) {
-      const userIds = processedData.map((item) => item.user_id).filter(Boolean)
+      const userIds = processedData.map((item: any) => item.user_id).filter(Boolean)
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase.from("profiles").select("id, username").in("id", userIds)
 

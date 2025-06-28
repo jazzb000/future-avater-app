@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, MessageSquare, Eye, Filter } from "lucide-react"
+import { Heart, MessageSquare, Filter } from "lucide-react"
 import Link from "next/link"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,7 +24,6 @@ type GalleryImage = {
   }
   likes_count: number
   comments_count: number
-  views_count: number
 }
 
 export default function GalleryPage() {
@@ -100,8 +99,7 @@ export default function GalleryPage() {
           created_at,
           user_id,
           likes_count: image_likes (count),
-          comments_count: image_comments (count),
-          views_count: image_views (view_count)
+          comments_count: image_comments (count)
         `,
           { count: "exact" },
         )
@@ -126,9 +124,6 @@ export default function GalleryPage() {
         case "popular":
           query = query.order("likes_count", { ascending: false }).order("created_at", { ascending: false })
           break
-        case "views":
-          query = query.order("views_count", { ascending: false }).order("created_at", { ascending: false })
-          break
       }
 
       const { data, error, count } = await query
@@ -141,7 +136,6 @@ export default function GalleryPage() {
         profiles: { username: "사용자" }, // 기본 사용자 이름 설정
         likes_count: item.likes_count?.[0]?.count || 0,
         comments_count: item.comments_count?.[0]?.count || 0,
-        views_count: item.views_count?.[0]?.view_count || 0,
       }))
 
       // 사용자 ID가 있는 이미지에 대해 프로필 정보 가져오기
@@ -226,7 +220,6 @@ export default function GalleryPage() {
           <TabsList className="grid grid-cols-3 w-full md:w-auto">
             <TabsTrigger value="latest">최신순</TabsTrigger>
             <TabsTrigger value="popular">인기순</TabsTrigger>
-            <TabsTrigger value="views">조회순</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -346,10 +339,6 @@ export default function GalleryPage() {
                       <div className="flex items-center">
                         <MessageSquare className="h-3 w-3 mr-1" />
                         {image.comments_count}
-                      </div>
-                      <div className="flex items-center">
-                        <Eye className="h-3 w-3 mr-1" />
-                        {image.views_count}
                       </div>
                     </div>
                   </CardContent>

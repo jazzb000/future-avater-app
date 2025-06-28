@@ -41,7 +41,7 @@ export default function DoodleDetailPage() {
         setLoading(true)
         
         // 조회수 증가
-        await supabase.rpc("increment_doodle_view", { doodle_id_param: imageId })
+  
         
         // 낙서 상세 정보 가져오기
         const { data: doodleData, error: doodleError } = await supabase
