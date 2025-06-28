@@ -930,6 +930,7 @@ TECHNICAL SPECIFICATIONS:
 - Ultra-high resolution details: skin texture, individual hair strands, eye reflections
 - Color accuracy: Natural Korean skin tones, authentic hair colors
 - Sharp focus on facial features while maintaining natural background blur
+- lighting is soft, dont' have to sharp focus on facial features, combine with background naturally
 
 ENVIRONMENT: ${environmentDescription}
 
