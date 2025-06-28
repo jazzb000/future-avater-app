@@ -67,9 +67,9 @@ export default function Home() {
       const avatarImages = avatarData.success ? avatarData.images.map((img: any) => ({ ...img, type: 'avatar' })) : []
       const doodleImages = doodleData.success ? doodleData.images.map((img: any) => ({ ...img, type: 'doodle' })) : []
       
-      // 두 배열을 합치고 날짜순으로 정렬
+      // 두 배열을 합치고 랜덤으로 섞기
       const newImages = [...avatarImages, ...doodleImages]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .sort(() => Math.random() - 0.5)
 
       if (reset) {
         setImages(newImages)
@@ -102,14 +102,30 @@ export default function Home() {
   // 더 많은 이미지 로드 (교대로 아바타와 낙서 페이지 증가)
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
+      // 현재 스크롤 위치 저장
+      const currentScrollY = window.scrollY
+      const currentDocumentHeight = document.documentElement.scrollHeight
+      
       // 아바타와 낙서를 교대로 로드
       if (avatarPage <= doodlePage) {
         setAvatarPage(prev => prev + 1)
       } else {
         setDoodlePage(prev => prev + 1)
       }
+      
       // fetchImages 호출을 setTimeout으로 지연시켜 상태 업데이트 후 실행
-      setTimeout(() => fetchImages(false), 0)
+      setTimeout(async () => {
+        try {
+          await fetchImages(false)
+          // 새 이미지 로딩 완료 후 스크롤 위치 조정
+          requestAnimationFrame(() => {
+            // 새 컨텐츠가 추가된 만큼 스크롤 위치를 아래로 조정하지 않고 원래 위치 유지
+            window.scrollTo(0, currentScrollY)
+          })
+        } catch (error) {
+          console.error('이미지 로딩 중 오류:', error)
+        }
+      }, 0)
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
@@ -234,13 +250,17 @@ export default function Home() {
               </div>
                  ) : images.length > 0 ? (
            <>
-             {/* Masonry-style Layout */}
+             {/* Masonry Layout */}
              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                {images.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
                  
                  return (
-                   <div key={`${image.type}-${image.id}`} className="break-inside-avoid mb-4">
+                   <div 
+                     key={`${image.type}-${image.id}`} 
+                     className="break-inside-avoid mb-4 opacity-0 transition-opacity duration-300"
+                     id={`card-${image.type}-${image.id}`}
+                   >
                      <Card 
                        className="group overflow-hidden border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-300 cursor-pointer bg-white/80 backdrop-blur-sm"
                        onClick={() => handleImageClick(image)}
@@ -250,6 +270,14 @@ export default function Home() {
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
                            className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                           loading="lazy"
+                           onLoad={(e) => {
+                             // 이미지 로드 완료 후 카드 전체를 표시
+                             const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
+                             if (cardElement) {
+                               cardElement.style.opacity = '1';
+                             }
+                           }}
                          />
                            
                            {/* 오버레이 그라디언트 */}
