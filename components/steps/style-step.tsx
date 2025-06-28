@@ -22,10 +22,16 @@ export function StyleStep({ updateSelection, currentStyle }: StyleStepProps) {
       description: "귀엽고 친근한 만화 캐릭터 스타일",
     },
     {
-      value: "anime",
-      label: "애니메이션 스타일",
-      icon: "✨",
-      description: "일본 애니메이션 스타일",
+      value: "selfie",
+      label: "셀카모드 스타일",
+      icon: "🤳",
+      description: "자연스러운 셀카 느낌의 스타일",
+    },
+    {
+      value: "film",
+      label: "필름 카메라 스타일",
+      icon: "📸",
+      description: "빈티지 필름 그레인 느낌의 스타일",
     },
     {
       value: "pixar",

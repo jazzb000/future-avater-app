@@ -206,7 +206,8 @@ export default function GalleryPage() {
 
   const styles = [
     { value: "cartoon", label: "만화 카툰 스타일" },
-    { value: "anime", label: "애니메이션 스타일" },
+    { value: "selfie", label: "셀카모드 스타일" },
+    { value: "film", label: "필름 카메라 스타일" },
     { value: "pixar", label: "픽사 3D 스타일" },
     { value: "comic", label: "만화책 스타일" },
     { value: "poster", label: "영화 포스터 스타일" },

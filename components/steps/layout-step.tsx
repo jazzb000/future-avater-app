@@ -41,7 +41,7 @@ export function LayoutStep({ updateSelection, currentLayout }: LayoutStepProps) 
               <div className="w-16 h-16 rounded-full bg-purple-200 border-2 border-purple-400 flex items-center justify-center">
                 <span className="text-2xl">🐬</span>
               </div>
-            </div>
+                </div>
             <div className="absolute bottom-1 right-1">
               <div className="w-8 h-6 bg-purple-400 rounded-sm flex items-center justify-center">
                 <span className="text-xs font-bold text-white">로고</span>

@@ -196,7 +196,7 @@ export async function POST(req: Request) {
     // OpenAI API를 사용하여 이미지 생성
     console.log("🤖 OpenAI API 호출 시작...")
     console.log("📋 API 설정:", { model: "gpt-image-1", size: "1536x1024", quality: "low" })
-
+    
     const result = await openai.images.edit({
       model: "gpt-image-1",
       image: imageFile,

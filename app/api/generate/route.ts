@@ -867,9 +867,13 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       styleDescription = "선명한 만화 스타일로, 이 사진의 얼굴 특징을 가지면서도 과장된 특징과 밝은 색상, 깔끔한 선화를 가진"
       renderingInstructions = "전문 애니메이션의 굵은 윤곽선, 단순화된 형태, 채도 높은 색상을 사용하여"
       break
-    case "anime":
-      styleDescription = "이 사진의 얼굴 특징을 가지면서도 일본 애니메이션 스타일로"
-      renderingInstructions = "애니메 음영 기법과 셀 셰이딩 효과, 전형적인 애니메 색상 팔레트를 적용하여"
+    case "selfie":
+      styleDescription = "자연스러운 셀카모드 스타일로, 스마트폰으로 찍은 듯한 편안하고 일상적인 느낌의"
+      renderingInstructions = "특유의 AI이미지처럼 색이 찐하면 안되어야함 부드러운 자연광, 약간의 보정 효과, 자연스러운 색감과 대비, 아이폰이나 갤럭시 카메라로 촬영한 듯한 자연스러운 품질, 초점 포커스 뒷배경이 나가지 말고 전체 포커스로"
+      break
+    case "film":
+      styleDescription = "빈티지 필름 카메라 스타일로, 아날로그 필름 특유의 따뜻하고 감성적인 느낌의"
+      renderingInstructions = "필름 그레인 텍스처, 중간느낌의 노이즈, 빈티지한 색감, 필름 카메라 특유의 부드러운 보케와 색상 번짐 효과를 적용하여"
       break
     case "pixar":
       styleDescription = "픽사 3D 애니메이션 스타일로, 이 사진의 얼굴 특징을 가지면서도 상세한 텍스처와 부드러운 조명, 특징적인 픽사 캐릭터 디자인을 가진"
@@ -914,7 +918,7 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
 
   // 최종 상세 프롬프트 조합 - 얼굴 유사도와 퀄리티 극대화
   return `MISSION: Transform this person into a ${genderDescription} ${ageDescription} ${jobDescription} while maintaining MAXIMUM facial similarity and Korean features.
-  ${ageDescription} 이 나이대라는 것을 명심해주세요.
+  ${ageDescription} 본 나이로 바꿔줘야 한다는 것을 명심해주세요.
 
 CRITICAL REQUIREMENTS:
 1. FACIAL PRESERVATION: Maintain the original person's unique facial structure, eye shape, nose bridge, lip shape, and overall bone structure
