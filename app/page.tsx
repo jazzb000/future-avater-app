@@ -231,7 +231,7 @@ export default function Home() {
           </p>
         <p className="text-sm text-gray-500">
           다른 사용자들이 만든 놀라운 작품들을 구경해보세요 ✨
-        </p>
+          </p>
         </div>
 
       {/* 사용자 갤러리 */}
@@ -364,15 +364,15 @@ export default function Home() {
        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3 z-50">
          {/* 시간버스 버튼 */}
          <div className="relative group">
-           <Link href="/future-me">
+              <Link href="/future-me">
              <Button
                size="lg"
                className="px-6 py-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
              >
                <Sparkles className="h-5 w-5" />
                <span className="font-medium">시간버스</span>
-             </Button>
-           </Link>
+                </Button>
+              </Link>
            
            {/* 설명 팝업 */}
            <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
@@ -383,19 +383,19 @@ export default function Home() {
                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-purple-600"></div>
              </div>
            </div>
-         </div>
+              </div>
 
          {/* 낙서 현실화 버튼 */}
          <div className="relative group">
-           <Link href="/doodle-to-reality">
+              <Link href="/doodle-to-reality">
              <Button
                size="lg"
                className="px-6 py-3 rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
              >
                <Pencil className="h-5 w-5" />
                <span className="font-medium">낙서현실화</span>
-             </Button>
-           </Link>
+                </Button>
+              </Link>
            
            {/* 설명 팝업 */}
            <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">

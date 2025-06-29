@@ -40,9 +40,14 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     }
   }, [])
 
-  // 탭 변경 시 카메라 비활성화만 (수동 시작으로 변경)
+  // 탭 변경 시 카메라 활성화/비활성화
   useEffect(() => {
-    if (activeTab !== "camera") {
+    if (activeTab === "camera") {
+      // 탭이 변경되자마자 즉시 카메라 시작
+      setTimeout(() => {
+        startCamera()
+      }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
+    } else {
       stopCameraStream()
     }
   }, [activeTab])
@@ -52,9 +57,14 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     console.log(`탭 변경: ${activeTab} -> ${value}`)
     setActiveTab(value)
     
-    if (value !== "camera") {
-      // 카메라 탭이 아닌 경우에만 스트림 정리
+    if (value === "camera") {
+      // 이전 스트림이 있다면 정리
       stopCameraStream()
+      // 새로운 카메라 시작
+      setTimeout(() => {
+        console.log("카메라 탭 선택됨 - 카메라 시작 시도")
+        startCamera()
+      }, 200)
     }
   }
 
