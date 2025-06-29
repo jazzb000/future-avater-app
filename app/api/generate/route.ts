@@ -917,5 +917,8 @@ FORBIDDEN ELEMENTS:
 - Over-processed or artificial appearance
 - Loss of original facial identity
 
-OUTPUT QUALITY: Professional portrait photography standard, suitable for official documents or professional profiles.`
+OUTPUT QUALITY: Professional portrait photography standard, suitable for official documents or professional profiles.
+
+기존 사진의 눈 크기 쌍커풀, 미간 코 크기, 코 높이 열굴윤곽을 유지하면서 주제에 맞게 변환해주세요.
+`
 }

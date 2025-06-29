@@ -373,7 +373,7 @@ export default function Home() {
                <span className="font-medium">시간버스</span>
                 </Button>
               </Link>
-           
+
            {/* 설명 팝업 */}
            <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
              <div className="bg-purple-600 text-white text-sm px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
