@@ -162,25 +162,7 @@ export default function Home() {
     }
   }, [loadMore])
 
-  // 원본 낙서 이미지 프리로딩 함수
-  const preloadOriginalImages = useCallback((imagesToPreload: GalleryImage[]) => {
-    imagesToPreload.forEach((image) => {
-      if (image.type === 'doodle' && image.original_image_url && !preloadedImages.has(image.original_image_url)) {
-        const img = new Image()
-        img.onload = () => {
-          setPreloadedImages(prev => new Set(prev).add(image.original_image_url!))
-        }
-        img.onerror = () => {
-          console.warn('원본 이미지 프리로딩 실패:', image.original_image_url)
-        }
-        // 우선순위를 낮게 설정하여 메인 이미지 로딩에 영향 주지 않음
-        img.loading = 'lazy'
-        img.src = image.original_image_url
-      }
-    })
-  }, [preloadedImages])
-
-  // Intersection Observer로 이미지 가시성 최적화 및 원본 이미지 프리로딩
+  // Intersection Observer로 이미지 가시성 최적화
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -191,26 +173,11 @@ export default function Home() {
               // 이미지가 뷰포트에 들어오면 로딩 우선순위를 높임
               img.loading = 'eager'
             }
-            
-            // 낙서현실화 이미지의 원본 이미지 프리로딩 시작
-            const cardId = entry.target.id
-            const imageIndex = parseInt(cardId.split('-')[2])
-            if (!isNaN(imageIndex) && images[imageIndex]?.type === 'doodle') {
-              // 해당 이미지와 주변 몇 개 이미지의 원본도 함께 프리로딩
-              const startIndex = Math.max(0, imageIndex - 2)
-              const endIndex = Math.min(images.length - 1, imageIndex + 2)
-              const imagesToPreload = images.slice(startIndex, endIndex + 1)
-              
-              // 약간의 지연을 두어 메인 이미지 로딩 후 프리로딩 시작
-              setTimeout(() => {
-                preloadOriginalImages(imagesToPreload)
-              }, 500)
-            }
           }
         })
       },
       {
-        rootMargin: '100px 0px', // 100px 여백으로 더 미리 로드
+        rootMargin: '50px 0px', // 50px 여백으로 미리 로드
         threshold: 0.1
       }
     )
@@ -220,7 +187,7 @@ export default function Home() {
     imageCards.forEach(card => observer.observe(card))
 
     return () => observer.disconnect()
-  }, [images, preloadOriginalImages])
+  }, [images])
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
