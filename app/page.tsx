@@ -51,8 +51,8 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 6개씩 가져오기
-      const limit = 6
+      // 각 타입별로 페이지당 4개씩 가져오기 (모바일 최적화)
+      const limit = 4
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
@@ -130,24 +130,26 @@ export default function Home() {
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
-  // 스크롤 이벤트 리스너 (throttling 적용)
+  // 스크롤 이벤트 리스너 (더 강한 throttling 적용)
   useEffect(() => {
     let timeoutId: NodeJS.Timeout | null = null
+    let isThrottled = false
 
     const handleScroll = () => {
-      if (timeoutId) return
+      if (isThrottled) return
 
-      timeoutId = setTimeout(() => {
+      isThrottled = true
+      setTimeout(() => {
         if (
-          window.innerHeight + document.documentElement.scrollTop + 800 >= 
+          window.innerHeight + document.documentElement.scrollTop + 600 >= 
           document.documentElement.offsetHeight &&
           !loadingMore &&
           hasMore
         ) {
           loadMore()
         }
-        timeoutId = null
-      }, 100)
+        isThrottled = false
+      }, 200) // throttling 간격을 200ms로 증가
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -158,6 +160,33 @@ export default function Home() {
       }
     }
   }, [loadMore])
+
+  // Intersection Observer로 이미지 가시성 최적화
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const img = entry.target.querySelector('img')
+            if (img && !img.complete) {
+              // 이미지가 뷰포트에 들어오면 로딩 우선순위를 높임
+              img.loading = 'eager'
+            }
+          }
+        })
+      },
+      {
+        rootMargin: '50px 0px', // 50px 여백으로 미리 로드
+        threshold: 0.1
+      }
+    )
+
+    // 모든 이미지 카드를 관찰
+    const imageCards = document.querySelectorAll('[id^="card-"]')
+    imageCards.forEach(card => observer.observe(card))
+
+    return () => observer.disconnect()
+  }, [images])
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
@@ -236,8 +265,8 @@ export default function Home() {
       {/* 사용자 갤러리 */}
       <div className="max-w-8xl mx-auto px-4 md:px-6 pb-32">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 9 }).map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="overflow-hidden border-2 border-gray-200 rounded-2xl animate-pulse">
                 <div className="aspect-[3/4] bg-gray-200" />
                 <CardContent className="p-4">
@@ -266,24 +295,35 @@ export default function Home() {
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="mb-6 opacity-0 transition-opacity duration-200"
+                     className="mb-6 opacity-0 transform translate-y-4 transition-all duration-300 ease-out"
                      id={`card-${image.type}-${image.id}`}
                    >
                      <Card 
-                       className="group overflow-hidden border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-300 cursor-pointer bg-white/80 backdrop-blur-sm"
+                       className="group overflow-hidden border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-200 cursor-pointer bg-white/80 backdrop-blur-sm"
                        onClick={() => handleImageClick(image)}
                      >
                        <div className="relative overflow-hidden">
                          <img
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
-                           className="w-full h-auto object-contain transition-transform duration-300"
+                           className="w-full h-auto object-contain transition-transform duration-200"
                            loading="lazy"
+                           fetchPriority={images.indexOf(image) < 4 ? "high" : "low"}
+                           decoding="async"
                            onLoad={(e) => {
                              // 이미지 로드 완료 후 카드 전체를 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
                                cardElement.style.opacity = '1';
+                               cardElement.style.transform = 'translateY(0)';
+                             }
+                           }}
+                           onError={(e) => {
+                             // 이미지 로드 실패시에도 카드 표시
+                             const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
+                             if (cardElement) {
+                               cardElement.style.opacity = '1';
+                               cardElement.style.transform = 'translateY(0)';
                              }
                            }}
                          />
