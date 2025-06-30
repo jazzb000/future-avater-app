@@ -326,17 +326,47 @@ export default function Home() {
 
   const getJobLabel = (job: string) => {
     switch (job) {
-      case "none": return "일반인"
-      case "doctor": return "의사"
       case "teacher": return "선생님"
-      case "astronaut": return "우주비행사"
+      case "engineer": return "엔지니어"
+      case "doctor": return "의사"
+      case "lawyer": return "변호사"
       case "chef": return "요리사"
+      case "musician": return "음악가"
+      case "designer": return "디자이너"
+      case "writer": return "작가"
+      case "photographer": return "사진작가"
+      case "pilot": return "조종사"
       case "firefighter": return "소방관"
+      case "police": return "경찰"
+      case "nurse": return "간호사"
+      case "farmer": return "농부"
+      case "businessman": return "사업가"
       case "scientist": return "과학자"
       case "artist": return "예술가"
       case "athlete": return "운동선수"
       case "announcer": return "아나운서"
       default: return job
+    }
+  }
+
+  const getStyleLabel = (style: string) => {
+    switch (style) {
+      case "realistic": return "사실적인 이미지"
+      case "anime": return "애니메이션 스타일"
+      case "cartoon": return "만화 스타일"
+      case "watercolor": return "수채화 스타일"
+      case "oil_painting": return "유화 스타일"
+      case "sketch": return "스케치 스타일"
+      case "pixel_art": return "픽셀 아트"
+      case "impressionist": return "인상주의 스타일"
+      case "abstract": return "추상화 스타일"
+      case "minimalist": return "미니멀 스타일"
+      case "vintage": return "빈티지 스타일"
+      case "cyberpunk": return "사이버펑크 스타일"
+      case "fantasy": return "판타지 스타일"
+      case "steampunk": return "스팀펑크 스타일"
+      case "gothic": return "고딕 스타일"
+      default: return style
     }
   }
 
@@ -492,7 +522,7 @@ export default function Home() {
                            <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-0 transition-transform duration-300">
                              <h3 className="text-sm font-medium mb-1 drop-shadow-md">
                                {image.type === 'doodle' 
-                                 ? `${image.style} 스타일`
+                                 ? getStyleLabel(image.style)
                                  : `${getAgeLabel(image.age || '')} ${getJobLabel(image.job || '')}`
                                }
                              </h3>
@@ -731,7 +761,7 @@ export default function Home() {
                    {selectedImage.type === 'doodle' ? (
                      <div className="bg-gray-50 rounded-lg p-4">
                        <p className="text-gray-700">
-                         <span className="font-medium">스타일:</span> {selectedImage.style}
+                         <span className="font-medium">스타일:</span> {getStyleLabel(selectedImage.style)}
                        </p>
                      </div>
                    ) : (
@@ -743,26 +773,18 @@ export default function Home() {
                          <span className="font-medium">직업:</span> {getJobLabel(selectedImage.job || '')}
                        </p>
                        <p className="text-gray-700">
-                         <span className="font-medium">스타일:</span> {selectedImage.style}
+                         <span className="font-medium">스타일:</span> {getStyleLabel(selectedImage.style)}
                        </p>
                      </div>
                    )}
         </div>
 
-                 {/* 사용자 정보 */}
-                 <div className="flex items-center justify-between pt-4 border-t">
-                   <div className="flex items-center gap-3">
-                     <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">
-                       {selectedImage.profiles?.username?.[0]?.toUpperCase() || 'U'}
-                     </div>
-                     <div>
-                       <p className="font-medium text-gray-800">{selectedImage.profiles?.username || "사용자"}</p>
-                       <p className="text-sm text-gray-600 flex items-center">
-                         <Clock className="h-3 w-3 mr-1" />
-                         {new Date(selectedImage.created_at).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
+                 {/* 생성 날짜 */}
+                 <div className="pt-4 border-t">
+                   <p className="text-sm text-gray-600 flex items-center">
+                     <Clock className="h-3 w-3 mr-1" />
+                     {new Date(selectedImage.created_at).toLocaleDateString()}
+                   </p>
                  </div>
                </div>
              </div>
