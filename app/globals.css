@@ -82,13 +82,13 @@ body {
     border-color: #e5e7eb;
   }
   
-  /* 스켈레톤 shimmer 애니메이션 */
+  /* 스켈레톤 shimmer 애니메이션 (빠른 버전) */
   @keyframes shimmer {
     0% {
       opacity: 1;
     }
     50% {
-      opacity: 0.5;
+      opacity: 0.4;
     }
     100% {
       opacity: 1;
@@ -96,6 +96,38 @@ body {
   }
   
   .animate-shimmer {
-    animation: shimmer 2s infinite ease-in-out;
+    animation: shimmer 1.5s infinite ease-in-out;
+  }
+  
+  /* 이미지 로딩 애니메이션 최적화 */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .fade-in-up {
+    animation: fadeInUp 0.4s ease-out forwards;
+  }
+  
+  /* 이미지 로딩 중 placeholder 최적화 */
+  img[loading="lazy"]:not([src]) {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
   }
 }

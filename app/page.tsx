@@ -106,8 +106,8 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 6개씩 가져오기 (사용자 화면 우선)
-      const limit = 6
+      // 각 타입별로 페이지당 8개씩 가져오기 (더 빠른 초기 로딩을 위해 증가)
+      const limit = 8
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
@@ -137,10 +137,10 @@ export default function Home() {
         })
       }
 
-      // 새로 로드된 이미지 후 스마트 프리로딩 실행
+      // 새로 로드된 이미지 후 스마트 프리로딩 실행 (더 빠르게)
       setTimeout(() => {
         preloadVisibleAreaImages()
-      }, 800) // 메인 이미지들이 로딩된 후 0.8초 뒤 시작
+      }, 300) // 메인 이미지들이 로딩된 후 0.3초 뒤 시작
 
       // 더 불러올 데이터가 있는지 확인
       const avatarHasMore = avatarData.success && avatarData.images.length === limit
@@ -212,9 +212,9 @@ export default function Home() {
         // 스크롤 시 현재 화면 기준 스마트 프리로딩 실행
         preloadVisibleAreaImages()
         
-        // 간단한 무한 스크롤만
+        // 간단한 무한 스크롤만 (더 빠른 트리거)
         if (
-          window.innerHeight + document.documentElement.scrollTop + 600 >= 
+          window.innerHeight + document.documentElement.scrollTop + 400 >= 
           document.documentElement.offsetHeight &&
           !loadingMore &&
           hasMore
@@ -222,7 +222,7 @@ export default function Home() {
           loadMore()
         }
         isThrottled = false
-      }, 200)
+      }, 100)
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -252,9 +252,9 @@ export default function Home() {
                 img.loading = 'eager'
               }
 
-              // 현재 화면에 보이는 정도에 따라 즉시 프리로딩
+              // 현재 화면에 보이는 정도에 따라 즉시 프리로딩 (더 적극적)
               if (image.type === 'doodle' && image.original_image_url) {
-                const delay = intersectionRatio > 0.5 ? 0 : 200 // 화면 절반 이상 보이면 즉시
+                const delay = intersectionRatio > 0.3 ? 0 : 100 // 화면 30% 이상 보이면 즉시
                 setTimeout(() => {
                   preloadImageSmart(image.original_image_url!)
                 }, delay)
@@ -398,7 +398,7 @@ export default function Home() {
             className="flex w-auto -ml-4 md:-ml-6"
             columnClassName="pl-4 md:pl-6 bg-clip-padding"
           >
-            {Array.from({ length: 12 }).map((_, i) => {
+            {Array.from({ length: 16 }).map((_, i) => {
               // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
               const aspectRatios = [
                 'aspect-[3/4]',   // 세로형 (기본)
@@ -454,7 +454,7 @@ export default function Home() {
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="mb-6 opacity-0 transform translate-y-4 transition-all duration-300 ease-out"
+                     className="mb-6 opacity-0 transform translate-y-4 transition-all duration-200 ease-out"
                      id={`card-${image.type}-${image.id}`}
                    >
                      <Card 
@@ -468,16 +468,18 @@ export default function Home() {
                            width={400}
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
-                           loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 4}
-                           quality={75}
-                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                           loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < 6}
+                           quality={80}
+                           fetchPriority={images.indexOf(image) < 4 ? "high" : "auto"}
+                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                            placeholder="blur"
                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkbHB0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                            onLoad={() => {
-                             // 이미지 로드 완료 후 카드 전체를 표시
+                             // 이미지 로드 완료 후 카드 전체를 빠르게 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
+                               cardElement.classList.add('fade-in-up');
                                cardElement.style.opacity = '1';
                                cardElement.style.transform = 'translateY(0)';
                              }
