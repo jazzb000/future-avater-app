@@ -825,30 +825,42 @@ export default function Home() {
                  <div className="grid md:grid-cols-2 gap-4 mb-6">
                    <div>
                      <h4 className="text-sm font-medium text-gray-600 mb-2">원본 낙서</h4>
-                     <img
-                       src={selectedImage.original_image_url}
+                     <Image
+                       src={selectedImage.original_image_url || "/placeholder.svg"}
                        alt="원본 낙서"
+                       width={400}
+                       height={600}
                        className="w-full h-auto object-contain rounded-lg border bg-white"
                        style={{ maxHeight: '50vh' }}
+                       quality={80}
+                       priority={true}
                      />
                    </div>
                    <div>
                      <h4 className="text-sm font-medium text-gray-600 mb-2">현실화된 이미지</h4>
-                     <img
-                       src={selectedImage.result_image_url}
+                     <Image
+                       src={selectedImage.result_image_url || "/placeholder.svg"}
                        alt="현실화된 이미지"
+                       width={400}
+                       height={600}
                        className="w-full h-auto object-contain rounded-lg"
                        style={{ maxHeight: '50vh' }}
+                       quality={80}
+                       priority={true}
                      />
                    </div>
                  </div>
                ) : (
                  /* 시간버스: 단일 이미지 */
                  <div className="mb-6">
-                   <img
-                     src={selectedImage.image_url}
+                   <Image
+                     src={selectedImage.image_url || "/placeholder.svg"}
                      alt="시간버스"
+                     width={400}
+                     height={600}
                      className="w-full h-auto object-contain rounded-lg max-h-[60vh] mx-auto"
+                     quality={80}
+                     priority={true}
                    />
                  </div>
                )}
