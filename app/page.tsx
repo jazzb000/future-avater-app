@@ -221,20 +221,20 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 via-purple-50 to-pink-50 relative">
         {/* 헤더 */}
-      <div className="text-center pt-12 pb-10 px-6">
-        <h1 className="text-5xl md:text-7xl font-bold text-gray-800 mb-6 font-display">
+      <div className="text-center pt-12 pb-10 px-4 md:px-6">
+        <h1 className="text-4xl md:text-7xl font-bold text-gray-800 mb-4 md:mb-6 font-display">
             돌핀인캘리 AI
           </h1>
-        <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-4">
+        <p className="text-lg md:text-2xl text-gray-600 max-w-4xl mx-auto mb-3 md:mb-4">
             AI로 상상하는 미래와 창작하는 현실을 경험해보세요
           </p>
-        <p className="text-lg text-gray-500">
+        <p className="text-base md:text-lg text-gray-500">
           다른 사용자들이 만든 놀라운 작품들을 구경해보세요 ✨
           </p>
         </div>
 
       {/* 사용자 갤러리 */}
-      <div className="max-w-8xl mx-auto px-6 pb-32">
+      <div className="max-w-8xl mx-auto px-4 md:px-6 pb-32">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 9 }).map((_, i) => (
@@ -257,8 +257,8 @@ export default function Home() {
                  768: 2,      // md에서 2열
                  640: 1       // sm에서 1열
                }}
-               className="flex w-auto -ml-6"
-               columnClassName="pl-6 bg-clip-padding"
+               className="flex w-auto -ml-4 md:-ml-6"
+               columnClassName="pl-4 md:pl-6 bg-clip-padding"
              >
                {images.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
@@ -362,10 +362,10 @@ export default function Home() {
             )}
           </>
         ) : (
-          <div className="text-center py-24 bg-white/60 backdrop-blur-sm rounded-3xl border-2 border-gray-200">
-            <div className="text-8xl mb-6">🎨</div>
-            <p className="text-gray-600 font-medium mb-3 text-xl">아직 작품이 없어요</p>
-            <p className="text-gray-500 text-lg">첫 번째 작품을 만들어보세요!</p>
+          <div className="text-center py-16 md:py-24 bg-white/60 backdrop-blur-sm rounded-3xl border-2 border-gray-200 mx-2 md:mx-0">
+            <div className="text-6xl md:text-8xl mb-4 md:mb-6">🎨</div>
+            <p className="text-gray-600 font-medium mb-2 md:mb-3 text-lg md:text-xl">아직 작품이 없어요</p>
+            <p className="text-gray-500 text-base md:text-lg">첫 번째 작품을 만들어보세요!</p>
           </div>
         )}
       </div>

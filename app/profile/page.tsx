@@ -88,15 +88,15 @@ export default function ProfilePage() {
         // 병렬로 두 테이블에서 동시에 데이터 가져오기
         const [futureResult, doodleResult] = await Promise.all([
           supabase
-            .from("generated_images")
-            .select("*")
-            .eq("user_id", user.id)
+          .from("generated_images")
+          .select("*")
+          .eq("user_id", user.id)
             .order("created_at", { ascending: false }),
           supabase
-            .from("doodle_images")
-            .select("*")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
+          .from("doodle_images")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
         ])
 
         if (futureResult.error) {
