@@ -484,11 +484,68 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // 파일 타입 검증
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      if (!validTypes.includes(file.type)) {
+        setError("JPG, JPEG, PNG, WebP 파일만 업로드 가능합니다.")
+        return
+      }
+
+      // 파일 크기 검증 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError("파일 크기는 10MB 이하여야 합니다.")
+        return
+      }
+
       const reader = new FileReader()
       reader.onload = () => {
         const result = reader.result as string
-        setPreviewUrl(result)
-        updateSelection("doodle", result)
+        
+        // 이미지를 Canvas로 변환하여 PNG로 통일
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          if (ctx) {
+            // 최대 해상도 제한 (2048x2048)
+            const maxSize = 2048
+            let { width, height } = img
+            
+            if (width > maxSize || height > maxSize) {
+              const ratio = Math.min(maxSize / width, maxSize / height)
+              width = Math.floor(width * ratio)
+              height = Math.floor(height * ratio)
+            }
+            
+            canvas.width = width
+            canvas.height = height
+            
+            // 고품질 렌더링
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+            
+            // 흰색 배경 (JPEG 투명도 처리)
+            ctx.fillStyle = 'white'
+            ctx.fillRect(0, 0, width, height)
+            
+            // 이미지 그리기
+            ctx.drawImage(img, 0, 0, width, height)
+            
+            // PNG로 변환 (고품질)
+            const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            setPreviewUrl(optimizedImage)
+            updateSelection("doodle", optimizedImage)
+            setError(null)
+          }
+        }
+        img.onerror = () => {
+          setError("이미지 파일을 읽을 수 없습니다.")
+        }
+        img.src = result
+      }
+      reader.onerror = () => {
+        setError("파일을 읽는 중 오류가 발생했습니다.")
       }
       reader.readAsDataURL(file)
     }
@@ -509,13 +566,73 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
 
     const file = e.dataTransfer.files?.[0]
     if (file && file.type.startsWith("image/")) {
+      // 드래그앤드롭에서도 같은 처리 로직 사용
+      // 파일 타입 검증
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      if (!validTypes.includes(file.type)) {
+        setError("JPG, JPEG, PNG, WebP 파일만 업로드 가능합니다.")
+        return
+      }
+
+      // 파일 크기 검증 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError("파일 크기는 10MB 이하여야 합니다.")
+        return
+      }
+
       const reader = new FileReader()
       reader.onload = () => {
         const result = reader.result as string
-        setPreviewUrl(result)
-        updateSelection("doodle", result)
+        
+        // 이미지를 Canvas로 변환하여 PNG로 통일
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          
+          if (ctx) {
+            // 최대 해상도 제한 (2048x2048)
+            const maxSize = 2048
+            let { width, height } = img
+            
+            if (width > maxSize || height > maxSize) {
+              const ratio = Math.min(maxSize / width, maxSize / height)
+              width = Math.floor(width * ratio)
+              height = Math.floor(height * ratio)
+            }
+            
+            canvas.width = width
+            canvas.height = height
+            
+            // 고품질 렌더링
+            ctx.imageSmoothingEnabled = true
+            ctx.imageSmoothingQuality = 'high'
+            
+            // 흰색 배경 (JPEG 투명도 처리)
+            ctx.fillStyle = 'white'
+            ctx.fillRect(0, 0, width, height)
+            
+            // 이미지 그리기
+            ctx.drawImage(img, 0, 0, width, height)
+            
+            // PNG로 변환 (고품질)
+            const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            setPreviewUrl(optimizedImage)
+            updateSelection("doodle", optimizedImage)
+            setError(null)
+          }
+        }
+        img.onerror = () => {
+          setError("이미지 파일을 읽을 수 없습니다.")
+        }
+        img.src = result
+      }
+      reader.onerror = () => {
+        setError("파일을 읽는 중 오류가 발생했습니다.")
       }
       reader.readAsDataURL(file)
+    } else {
+      setError("이미지 파일만 업로드 가능합니다.")
     }
   }
 
@@ -640,14 +757,14 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
                 >
                   <Upload className="mr-2 h-4 w-4" /> 낙서 올리기
                 </Button>
-                <input
-                  ref={fileInputRef}
-                  id="doodle-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
+                                  <input
+                    ref={fileInputRef}
+                    id="doodle-upload"
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
               </div>
             </div>
           </TabsContent>
