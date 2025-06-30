@@ -26,6 +26,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  
+  // 스트림 정리 플래그 (메모리 누수 방지)
+  const streamCleanupRef = useRef<boolean>(false)
 
   // 모바일 감지 함수
   const isMobile = () => {
@@ -33,35 +36,61 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
            (typeof window !== 'undefined' && window.innerWidth <= 768)
   }
 
-  // 카메라 스트림 정리 함수
-  const stopCameraStream = () => {
-    console.log("카메라 스트림 정리 시작")
-    
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => {
-        console.log(`트랙 정리: ${track.kind} - ${track.readyState}`)
-        track.stop()
-      })
-      setCameraStream(null)
-    }
-    
-    // 비디오 요소 정리
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-      videoRef.current.src = ""
-    }
-    
-    setIsCameraActive(false)
-    setIsLoadingCamera(false)
-    setIsCapturing(false)
-    setShowMobileCameraModal(false)
-    console.log("카메라 스트림 정리 완료")
+  // 안전한 카메라 스트림 정리 함수
+  const stopCameraStream = async (): Promise<void> => {
+    return new Promise((resolve) => {
+      console.log("🔄 카메라 스트림 정리 시작")
+      streamCleanupRef.current = true
+      
+      try {
+        // 기존 스트림 정리
+        if (cameraStream) {
+          cameraStream.getTracks().forEach((track) => {
+            console.log(`📹 트랙 정리: ${track.kind} - ${track.readyState}`)
+            track.stop()
+          })
+        }
+        
+        // 비디오 요소 완전 정리
+        if (videoRef.current) {
+          videoRef.current.pause()
+          videoRef.current.srcObject = null
+          videoRef.current.src = ""
+          videoRef.current.load()
+          
+          // 모든 이벤트 리스너 제거
+          videoRef.current.onloadstart = null
+          videoRef.current.onloadeddata = null
+          videoRef.current.oncanplay = null
+          videoRef.current.onloadedmetadata = null
+        }
+        
+        // 상태 초기화
+        setCameraStream(null)
+        setIsCameraActive(false)
+        setIsLoadingCamera(false)
+        setIsCapturing(false)
+        setShowMobileCameraModal(false)
+        
+        console.log("✅ 카메라 스트림 정리 완료")
+        
+        // 정리 완료 후 잠시 대기
+        setTimeout(() => {
+          streamCleanupRef.current = false
+          resolve()
+        }, 500)
+        
+      } catch (error) {
+        console.error("❌ 스트림 정리 중 오류:", error)
+        streamCleanupRef.current = false
+        resolve()
+      }
+    })
   }
 
   // 모바일 카메라 모달 닫기
-  const closeMobileCameraModal = () => {
-    setShowMobileCameraModal(false)
-    stopCameraStream()
+  const closeMobileCameraModal = async () => {
+    await stopCameraStream()
   }
 
   // 컴포넌트 언마운트 시 카메라 스트림 정리
@@ -71,97 +100,121 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     }
   }, [])
 
-  // 탭 변경 시 카메라 활성화/비활성화
-  useEffect(() => {
-    if (activeTab === "camera") {
-      // 탭이 변경되자마자 즉시 카메라 시작
-      setTimeout(() => {
-        startCamera()
-      }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
-    } else {
-      stopCameraStream()
-    }
-  }, [activeTab])
-
-  // activeTab이 변경될 때마다 강제로 카메라 상태 초기화
-  const handleTabChange = (value: string) => {
-    console.log(`탭 변경: ${activeTab} -> ${value}`)
+  // 탭 변경 핸들러
+  const handleTabChange = async (value: string) => {
+    console.log(`🔄 탭 변경: ${activeTab} -> ${value}`)
+    
+    // 이전 스트림 완전 정리
+    await stopCameraStream()
+    setError(null)
     setActiveTab(value)
     
     if (value === "camera") {
-      // 이전 스트림이 있다면 정리
-      stopCameraStream()
-      setError(null) // 이전 에러 상태 초기화
-      
-      // 모바일에서는 자동 카메라 시작을 하지 않고 사용자 액션을 기다림      
+      // 모바일에서는 수동 시작, 데스크톱에서는 자동 시작
       if (!isMobile()) {
-        // 데스크톱에서만 자동 카메라 시작
-      setTimeout(() => {
-          console.log("카메라 탭 선택됨 - 카메라 시작 시도 (데스크톱)")
-        startCamera()
-        }, 300)
+        setTimeout(() => {
+          console.log("🖥️ 데스크톱 - 자동 카메라 시작")
+          startCamera()
+        }, 800) // 더 긴 대기 시간
       } else {
-        console.log("모바일 환경 감지 - 수동 카메라 시작 대기")
+        console.log("📱 모바일 - 수동 카메라 시작 대기")
       }
-    } else {
-      // 다른 탭으로 이동할 때는 카메라 정리
-      stopCameraStream()
     }
   }
 
-  // 카메라 시작 함수 (모바일 최적화)
-  const startCamera = async (retryCount = 0) => {
+  // 비디오 완전 로딩 대기 함수
+  const waitForVideoReady = async (video: HTMLVideoElement, timeout = 10000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const startTime = Date.now()
+      
+      const checkVideoState = () => {
+        const elapsed = Date.now() - startTime
+        
+        if (elapsed > timeout) {
+          console.warn("⏰ 비디오 로딩 타임아웃")
+          resolve(false)
+          return
+        }
+        
+        // 더 엄격한 비디오 상태 검증
+        const isReady = video &&
+                       video.videoWidth > 0 &&
+                       video.videoHeight > 0 &&
+                       video.readyState >= 3 && // HAVE_FUTURE_DATA 이상
+                       !video.paused &&
+                       !video.ended &&
+                       video.currentTime > 0
+        
+        if (isReady) {
+          console.log("✅ 비디오 완전 준비됨:", {
+            width: video.videoWidth,
+            height: video.videoHeight,
+            readyState: video.readyState,
+            currentTime: video.currentTime,
+            paused: video.paused
+          })
+          resolve(true)
+        } else {
+          // 100ms마다 다시 확인
+          setTimeout(checkVideoState, 100)
+        }
+      }
+      
+      checkVideoState()
+    })
+  }
+
+  // 강화된 카메라 시작 함수
+  const startCamera = async (retryCount = 0): Promise<boolean> => {
+    if (streamCleanupRef.current) {
+      console.log("🚫 스트림 정리 중이므로 대기...")
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+    
     try {
-      console.log(`카메라 시작 함수 호출됨 (시도 ${retryCount + 1})`)
+      console.log(`🎥 카메라 시작 시도 ${retryCount + 1}/3`)
       setError(null)
       setIsLoadingCamera(true)
       
-      // 이미 카메라가 활성화되어 있다면 종료
+      // 기존 스트림이 있으면 완전 정리
       if (cameraStream) {
-        console.log("기존 카메라 스트림 정리 중...")
-        stopCameraStream()
-        // 모바일에서 더 긴 대기 시간
-        await new Promise(resolve => setTimeout(resolve, isMobile() ? 1500 : 500))
+        await stopCameraStream()
+        await new Promise(resolve => setTimeout(resolve, 1000))
       }
       
-      // 모바일에서는 모달 열기 (스트림 정리 후)
+      // 모바일 모달 활성화
       if (isMobile()) {
         setShowMobileCameraModal(true)
-        // 모달이 완전히 렌더링될 때까지 잠시 대기
-        await new Promise(resolve => setTimeout(resolve, 300))
+        await new Promise(resolve => setTimeout(resolve, 500))
       }
       
-      // 미디어 장치 지원 여부 확인
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      // 브라우저 지원 확인
+      if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error("이 브라우저는 카메라를 지원하지 않습니다.")
       }
       
-      // 권한 확인 (지원하는 브라우저만)
+      // 권한 확인 시도
       try {
-        if (navigator.permissions) {
-          const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName })
-          console.log("카메라 권한 상태:", permissionStatus.state)
-          
-          if (permissionStatus.state === 'denied') {
-            throw new Error("카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.")
+        if ('permissions' in navigator) {
+          const permission = await navigator.permissions.query({ name: 'camera' as PermissionName })
+          if (permission.state === 'denied') {
+            throw new Error("카메라 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.")
           }
         }
-      } catch (permissionError) {
-        console.log("권한 확인 중 오류 (무시):", permissionError)
+      } catch (permError) {
+        console.log("권한 확인 스킵:", permError)
       }
       
-      // 모바일 최적화된 카메라 설정 (isMobile() 함수와 일치하도록)
+      // 강화된 카메라 설정
       const isMobileDevice = isMobile()
       const constraints = {
         video: {
           facingMode: "user",
           ...(isMobileDevice ? {
-            // 모바일에서는 더 낮은 해상도로 시작
-            width: { ideal: 640, min: 480 },
-            height: { ideal: 480, min: 360 },
+            width: { ideal: 640, min: 320 },
+            height: { ideal: 480, min: 240 },
             frameRate: { ideal: 15, max: 30 }
           } : {
-            // 데스크톱에서는 높은 해상도
             width: { ideal: 1280, min: 640 },
             height: { ideal: 720, min: 480 },
             frameRate: { ideal: 30, min: 15 }
@@ -169,105 +222,85 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         }
       }
 
-      console.log("카메라 스트림 요청 중... (모바일:", isMobileDevice, ")")
+      console.log("📷 카메라 스트림 요청 중...")
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
-      console.log("카메라 스트림 획득 성공")
-
-      // 스트림이 활성 상태인지 확인
-      if (!stream.active) {
-        throw new Error("카메라 스트림이 활성화되지 않았습니다.")
+      
+      // 스트림 유효성 확인
+      if (!stream || !stream.active || stream.getTracks().length === 0) {
+        throw new Error("카메라 스트림을 획득할 수 없습니다.")
       }
-
+      
+      console.log("✅ 카메라 스트림 획득 성공")
+      
+      // 비디오 요소에 스트림 연결
+      if (!videoRef.current) {
+        throw new Error("비디오 요소를 찾을 수 없습니다.")
+      }
+      
+      const video = videoRef.current
+      
+      // 비디오 속성 설정 (모바일 최적화)
+      video.playsInline = true
+      video.muted = true
+      video.autoplay = true
+      video.controls = false
+      
+      // 스트림 연결
+      video.srcObject = stream
+      
+      // 비디오 로드 시작
+      video.load()
+      
+      try {
+        await video.play()
+        console.log("🎬 비디오 재생 시작")
+      } catch (playError) {
+        console.warn("비디오 자동 재생 실패, 수동 시도:", playError)
+        
+        // 모바일에서 수동 재생 시도
+        video.muted = true
+        try {
+          await video.play()
+        } catch (retryError) {
+          console.warn("수동 재생도 실패:", retryError)
+          // 재생 실패해도 스트림은 유지
+        }
+      }
+      
+      // 비디오 완전 로딩 대기
+      const isVideoReady = await waitForVideoReady(video, 15000)
+      
+      if (!isVideoReady) {
+        throw new Error("비디오가 준비되지 않았습니다.")
+      }
+      
+      // 최종 상태 설정
       setCameraStream(stream)
       setIsCameraActive(true)
       setIsLoadingCamera(false)
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        
-        // 모바일 최적화 속성 설정
-        videoRef.current.setAttribute('playsinline', 'true')
-        videoRef.current.setAttribute('webkit-playsinline', 'true')
-        
-        // 비디오 로드 대기 (더 빠른 방법)
-        const waitForVideoLoad = async () => {
-          let attempts = 0
-          const maxAttempts = 30 // 100ms * 30 = 3초
-          
-          while (attempts < maxAttempts) {
-            if (videoRef.current && 
-                videoRef.current.videoWidth > 0 && 
-                videoRef.current.videoHeight > 0 && 
-                videoRef.current.readyState >= 2) {
-              console.log("비디오 로드 완료:", {
-                width: videoRef.current.videoWidth,
-                height: videoRef.current.videoHeight,
-                readyState: videoRef.current.readyState
-              })
-              return true
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 100))
-            attempts++
-            
-            if (attempts % 5 === 0) {
-              console.log(`비디오 로드 대기 중... (${attempts}/${maxAttempts})`)
-            }
-          }
-          
-          console.warn("비디오 로드 타임아웃 - 강제 진행")
-          return true // 타임아웃이어도 진행 (일부 모바일에서 필요)
-        }
-        
-        const videoLoaded = await waitForVideoLoad()
-        if (!videoLoaded) {
-          console.warn("비디오 로드 실패하지만 계속 진행")
-        }
-
-        // 비디오 재생 시도 (모바일 최적화)
-        try {
-          await videoRef.current.play()
-          console.log("비디오 재생 시작됨")
-        } catch (playError) {
-          console.log("비디오 자동 재생 실패:", playError)
-          
-          // 모바일에서 재생 실패 시 수동 재생 시도
-          if (isMobile()) {
-            console.log("모바일에서 수동 재생 시도")
-            // 사용자 상호작용으로 재생 시도
-            videoRef.current.muted = true
-            videoRef.current.playsInline = true
-            
-            try {
-              await videoRef.current.play()
-              console.log("모바일 수동 재생 성공")
-            } catch (retryError) {
-              console.log("모바일 수동 재생도 실패:", retryError)
-              // 재생 실패해도 카메라 스트림은 활성화된 상태로 유지
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error("카메라 접근 오류:", err)
+      
+      console.log("🎉 카메라 시작 완료!")
+      return true
+      
+    } catch (error) {
+      console.error("❌ 카메라 시작 실패:", error)
       setIsLoadingCamera(false)
       
-      // 재시도 로직 (최대 2회)
+      // 재시도 로직
       if (retryCount < 2) {
-        console.log(`카메라 시작 재시도... (${retryCount + 1}/2)`)
-        setIsLoadingCamera(true)
+        console.log(`🔄 카메라 재시도 ${retryCount + 1}/2`)
         await new Promise(resolve => setTimeout(resolve, 2000))
         return startCamera(retryCount + 1)
       }
       
-      // 최종 실패 시 모바일 모달도 닫기
+      // 최종 실패
       if (isMobile()) {
         setShowMobileCameraModal(false)
       }
       
-      // 모바일에서 더 구체적인 에러 메시지
-      if (err instanceof DOMException) {
-        switch (err.name) {
+      // 에러 메시지 설정
+      if (error instanceof DOMException) {
+        switch (error.name) {
           case 'NotAllowedError':
             setError("❌ 카메라 권한이 필요합니다.\n브라우저 주소창 옆의 카메라 아이콘을 클릭하여 권한을 허용해주세요.")
             break
@@ -275,24 +308,26 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
             setError("❌ 카메라를 찾을 수 없습니다.\n다른 앱에서 카메라를 사용 중이지 않은지 확인해주세요.")
             break
           case 'NotReadableError':
-            setError("❌ 카메라가 사용 중입니다.\n다른 앱이나 탭에서 카메라를 사용 중이지 않은지 확인해주세요.")
+            setError("❌ 카메라가 사용 중입니다.\n다른 앱이나 탭에서 카메라를 종료한 후 다시 시도해주세요.")
             break
           case 'OverconstrainedError':
-            setError("❌ 카메라 설정을 지원하지 않습니다.\n다른 카메라나 브라우저를 사용해보세요.")
+            setError("❌ 카메라 설정을 지원하지 않습니다.\n브라우저를 새로고침한 후 다시 시도해주세요.")
             break
           default:
-            setError(`❌ 카메라 오류 (${err.name})\n새로고침 후 다시 시도해주세요.`)
+            setError(`❌ 카메라 오류 (${error.name})\n브라우저를 새로고침한 후 다시 시도해주세요.`)
         }
       } else {
-        setError("❌ 카메라 연결 실패\n• 브라우저를 새로고침해보세요\n• 다른 앱에서 카메라 사용을 종료해보세요\n• 브라우저 설정에서 카메라 권한을 확인해보세요")
+        setError("❌ 카메라 연결 실패\n• 브라우저를 새로고침해보세요\n• 다른 앱에서 카메라 사용을 종료해보세요\n• 개발자 도구를 닫고 다시 시도해보세요")
       }
+      
+      return false
     }
   }
 
-  // 사진 촬영 함수
-  const capturePhoto = async () => {
+  // 강화된 사진 촬영 함수
+  const capturePhoto = async (): Promise<void> => {
     if (isCapturing) {
-      console.log("이미 촬영 중입니다.")
+      console.log("🚫 이미 촬영 중입니다.")
       return
     }
     
@@ -300,68 +335,56 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     setError(null)
     
     try {
-    if (!canvasRef.current || !videoRef.current) {
-      console.error("캔버스 또는 비디오 요소를 찾을 수 없습니다.")
-        setError("촬영 준비가 되지 않았습니다. 잠시 후 다시 시도해주세요.")
-      return
-    }
-
-    const canvas = canvasRef.current
-    const video = videoRef.current
-    const context = canvas.getContext("2d")
-
-    if (!context) {
-      console.error("캔버스 컨텍스트를 가져올 수 없습니다.")
-        setError("촬영 기능에 문제가 있습니다. 브라우저를 새로고침해주세요.")
-        return
-      }
-
-      // 비디오 스트림이 활성화되어 있는지 확인
-      if (!cameraStream || !cameraStream.active) {
-        console.error("카메라 스트림이 활성화되지 않았습니다.")
-        setError("카메라가 연결되지 않았습니다. 카메라를 다시 켜주세요.")
-      return
-    }
-
-      // 비디오가 로드될 때까지 대기 (최대 5초)
-      let retryCount = 0
-      const maxRetries = 25 // 200ms * 25 = 5초
+      console.log("📸 사진 촬영 시작")
       
-      while ((video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) && retryCount < maxRetries) {
-        console.log(`비디오 로딩 대기 중... (${retryCount + 1}/${maxRetries})`, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          readyState: video.readyState
-        })
-        
-        await new Promise(resolve => setTimeout(resolve, 200))
-        retryCount++
+      // 필수 요소 확인
+      if (!canvasRef.current || !videoRef.current) {
+        throw new Error("촬영 요소를 찾을 수 없습니다.")
       }
 
-      // 최종 비디오 상태 확인
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.error("비디오 로딩 실패:", {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          readyState: video.readyState,
-          srcObject: video.srcObject
-        })
-        setError("카메라 영상을 불러올 수 없습니다. 카메라를 다시 켜보세요.")
-      return
-    }
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      const context = canvas.getContext("2d")
 
-      // 모바일에서 더 안정적인 캔버스 크기 설정
+      if (!context) {
+        throw new Error("캔버스 컨텍스트를 가져올 수 없습니다.")
+      }
+
+      // 카메라 스트림 상태 확인
+      if (!cameraStream || !cameraStream.active) {
+        throw new Error("카메라 스트림이 활성화되지 않았습니다.")
+      }
+
+      // 비디오 준비 상태 재확인
+      const isVideoReady = await waitForVideoReady(video, 5000)
+      
+      if (!isVideoReady) {
+        throw new Error("비디오가 준비되지 않았습니다.")
+      }
+
+      // 최종 비디오 상태 검증
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        throw new Error("비디오 크기가 유효하지 않습니다.")
+      }
+
+      console.log("📹 비디오 상태:", {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        readyState: video.readyState,
+        currentTime: video.currentTime
+      })
+
+      // 캔버스 크기 설정 (고품질)
       const videoWidth = video.videoWidth
       const videoHeight = video.videoHeight
       
-      // 최대 크기 제한 (모바일 성능 고려)
-      const maxWidth = 1280
-      const maxHeight = 720
+      // 최대 해상도 제한
+      const maxWidth = 1920
+      const maxHeight = 1080
       
       let canvasWidth = videoWidth
       let canvasHeight = videoHeight
       
-      // 비율 유지하면서 크기 조정
       if (canvasWidth > maxWidth || canvasHeight > maxHeight) {
         const ratio = Math.min(maxWidth / canvasWidth, maxHeight / canvasHeight)
         canvasWidth = Math.floor(canvasWidth * ratio)
@@ -371,32 +394,37 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
-    // 비디오 프레임을 캔버스에 그리기
+      // 고품질 렌더링 설정
+      context.imageSmoothingEnabled = true
+      context.imageSmoothingQuality = 'high'
+
+      // 비디오 프레임 캡처
       context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
 
-      // 캔버스에서 이미지 데이터 추출 (모바일에서 더 나은 품질)
-      const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      // 고품질 JPEG로 변환
+      const imageData = canvas.toDataURL("image/jpeg", 0.92)
 
-      if (imageData && imageData !== "data:,") {
-    setPreviewUrl(imageData)
-    updateSelection("photo", imageData)
-
-    // 카메라 스트림 정지
-    stopCameraStream()
-        
-        // 모바일 모달 닫기
-        if (isMobile()) {
-          setShowMobileCameraModal(false)
-        }
-        
-        console.log("사진 촬영 성공!")
-      } else {
-        console.error("이미지 데이터를 생성할 수 없습니다.")
-        setError("사진을 촬영할 수 없습니다. 다시 시도해주세요.")
+      if (!imageData || imageData === "data:," || imageData.length < 1000) {
+        throw new Error("이미지 데이터를 생성할 수 없습니다.")
       }
+
+      // 성공 처리
+      setPreviewUrl(imageData)
+      updateSelection("photo", imageData)
+
+      // 카메라 정리
+      await stopCameraStream()
+        
+      console.log("🎉 사진 촬영 완료!")
+      
     } catch (error) {
-      console.error("사진 촬영 중 오류 발생:", error)
-      setError("사진 촬영 중 오류가 발생했습니다. 다시 시도해주세요.")
+      console.error("❌ 사진 촬영 실패:", error)
+      
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError("사진 촬영 중 오류가 발생했습니다. 다시 시도해주세요.")
+      }
     } finally {
       setIsCapturing(false)
     }
