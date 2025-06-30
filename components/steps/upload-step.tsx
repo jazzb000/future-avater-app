@@ -665,13 +665,15 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         </div>
       ) : (
         <Tabs defaultValue="upload" value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-2 mb-4 bg-purple-100">
+          <TabsList className={`grid ${isMobile() ? 'grid-cols-1' : 'grid-cols-2'} mb-4 bg-purple-100`}>
             <TabsTrigger value="upload" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
               사진 올리기
             </TabsTrigger>
-            <TabsTrigger value="camera" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
-              사진 찍기
-            </TabsTrigger>
+            {!isMobile() && (
+              <TabsTrigger value="camera" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+                사진 찍기
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="upload">
@@ -716,13 +718,11 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                       autoPlay
                       playsInline
                       muted
+                      className="w-full rounded-xl border-4 border-purple-300"
                       style={{
-                        width: '100%',
-                        height: '100%',
                         background: '#000',
                         objectFit: 'cover',
                         display: 'block',
-                        borderRadius: '1rem',
                       }}
                     />
                     <canvas ref={canvasRef} className="hidden" />

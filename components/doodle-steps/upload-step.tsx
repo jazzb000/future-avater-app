@@ -722,7 +722,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
         </div>
       ) : (
         <Tabs defaultValue="upload" value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-3 mb-4 bg-teal-100">
+          <TabsList className={`grid ${isMobile() ? 'grid-cols-2' : 'grid-cols-3'} mb-4 bg-teal-100`}>
             <TabsTrigger value="upload" className="data-[state=active]:bg-teal-500 data-[state=active]:text-white">
               <Upload className="mr-2 h-4 w-4" />
               업로드
@@ -731,10 +731,12 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
               <Pencil className="mr-2 h-4 w-4" />
               직접 그리기
             </TabsTrigger>
-            <TabsTrigger value="camera" className="data-[state=active]:bg-teal-500 data-[state=active]:text-white">
-              <Camera className="mr-2 h-4 w-4" />
-              사진 찍기
-            </TabsTrigger>
+            {!isMobile() && (
+              <TabsTrigger value="camera" className="data-[state=active]:bg-teal-500 data-[state=active]:text-white">
+                <Camera className="mr-2 h-4 w-4" />
+                사진 찍기
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="upload">
