@@ -143,9 +143,20 @@ export default function Home() {
       }, 300) // 메인 이미지들이 로딩된 후 0.3초 뒤 시작
 
       // 더 불러올 데이터가 있는지 확인
-      const avatarHasMore = avatarData.success && avatarData.images.length === limit
-      const doodleHasMore = doodleData.success && doodleData.images.length === limit
-      setHasMore(avatarHasMore || doodleHasMore)
+      const avatarHasMore = avatarData.success && avatarData.images && avatarData.images.length === limit
+      const doodleHasMore = doodleData.success && doodleData.images && doodleData.images.length === limit
+      const stillHasMore = avatarHasMore || doodleHasMore
+      
+      console.log('📊 초기 로딩 완료:', { 
+        avatarImages: avatarImages.length,
+        doodleImages: doodleImages.length,
+        total: newImages.length,
+        avatarHasMore,
+        doodleHasMore,
+        stillHasMore
+      })
+      
+      setHasMore(stillHasMore)
       
     } catch (error) {
       console.error('이미지를 가져오는 중 오류가 발생했습니다:', error)
@@ -160,43 +171,111 @@ export default function Home() {
     fetchImages(true)
   }, [])
 
-  // 더 많은 이미지 로드 (교대로 아바타와 낙서 페이지 증가)
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) {
-      // 현재 스크롤 위치 저장
-      const currentScrollY = window.scrollY
-      const currentDocumentHeight = document.documentElement.scrollHeight
-      
-      // 아바타와 낙서를 교대로 로드
-      if (avatarPage <= doodlePage) {
-        setAvatarPage(prev => prev + 1)
-      } else {
-        setDoodlePage(prev => prev + 1)
-      }
-      
-      // fetchImages 호출을 setTimeout으로 지연시켜 상태 업데이트 후 실행
-      setTimeout(async () => {
-        try {
-          await fetchImages(false)
-          // 새 이미지 로딩 완료 후 스크롤 위치 조정
-          requestAnimationFrame(() => {
-            // 새 컨텐츠가 추가된 만큼 스크롤 위치를 아래로 조정하지 않고 원래 위치 유지
-            window.scrollTo(0, currentScrollY)
-          })
-        } catch (error) {
-          console.error('이미지 로딩 중 오류:', error)
-        }
-      }, 0)
+  // 강력한 무한스크롤 - 더 많은 이미지 로드 
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) {
+      console.log('로딩 중이거나 더 이상 로드할 데이터가 없음:', { loadingMore, hasMore })
+      return
     }
-  }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
-  // 스크롤 이벤트 리스너 (스크롤 위치 기억)
+    console.log('🔄 더 많은 이미지 로딩 시작...', { avatarPage, doodlePage })
+    
+    setLoadingMore(true)
+    
+    try {
+      const limit = 8
+      let avatarImages: any[] = []
+      let doodleImages: any[] = []
+      let avatarHasMore = false
+      let doodleHasMore = false
+
+      // 두 타입의 이미지를 모두 로드 시도
+      try {
+        const avatarResponse = await fetch(`/api/gallery?type=avatar&limit=${limit}&page=${avatarPage}&filter=latest`)
+        const avatarData = await avatarResponse.json()
+        if (avatarData.success && avatarData.images) {
+          avatarImages = avatarData.images.map((img: any) => ({ ...img, type: 'avatar' }))
+          avatarHasMore = avatarImages.length === limit
+        }
+      } catch (error) {
+        console.warn('아바타 이미지 로딩 실패:', error)
+      }
+
+      try {
+        const doodleResponse = await fetch(`/api/gallery?type=doodle&limit=${limit}&page=${doodlePage}&filter=latest`)
+        const doodleData = await doodleResponse.json()
+        if (doodleData.success && doodleData.images) {
+          doodleImages = doodleData.images.map((img: any) => ({ ...img, type: 'doodle' }))
+          doodleHasMore = doodleImages.length === limit
+        }
+      } catch (error) {
+        console.warn('낙서 이미지 로딩 실패:', error)
+      }
+
+      // 새로운 이미지들을 합치고 섞기
+      const newImages = [...avatarImages, ...doodleImages]
+        .sort(() => Math.random() - 0.5)
+
+      console.log('📊 로딩된 새 이미지:', { 
+        avatarCount: avatarImages.length, 
+        doodleCount: doodleImages.length,
+        total: newImages.length 
+      })
+
+      if (newImages.length > 0) {
+        // 중복 제거 후 추가
+        setImages(prev => {
+          const uniqueNewImages = removeDuplicates(newImages, prev)
+          console.log('✅ 중복 제거 후 추가될 이미지:', uniqueNewImages.length)
+          return [...prev, ...uniqueNewImages]
+        })
+
+        // 페이지 번호 증가 (로딩 성공시에만)
+        if (avatarImages.length > 0) setAvatarPage(prev => prev + 1)
+        if (doodleImages.length > 0) setDoodlePage(prev => prev + 1)
+      }
+
+      // hasMore 상태 업데이트 (둘 중 하나라도 더 있으면 계속)
+      const stillHasMore = avatarHasMore || doodleHasMore
+      console.log('📈 더 로드할 데이터 여부:', { avatarHasMore, doodleHasMore, stillHasMore })
+      setHasMore(stillHasMore)
+
+      // 프리로딩 실행
+      setTimeout(() => {
+        preloadVisibleAreaImages()
+      }, 200)
+
+      // 성공적으로 로드했으면 에러 카운트 리셋
+      localStorage.removeItem('loadMoreErrorCount')
+
+    } catch (error) {
+      console.error('❌ 이미지 로딩 중 오류:', error)
+      // 오류 발생해도 계속 시도할 수 있도록 hasMore는 유지
+      // 단, 3회 연속 실패하면 hasMore를 false로 설정
+      const errorCount = parseInt(localStorage.getItem('loadMoreErrorCount') || '0') + 1
+      localStorage.setItem('loadMoreErrorCount', errorCount.toString())
+      
+      if (errorCount >= 3) {
+        console.warn('⚠️ 3회 연속 로딩 실패, 무한스크롤 중단')
+        setHasMore(false)
+        localStorage.removeItem('loadMoreErrorCount')
+      }
+    } finally {
+      setLoadingMore(false)
+      console.log('�� 이미지 로딩 완료')
+    }
+  }, [loadingMore, hasMore, avatarPage, doodlePage, removeDuplicates, preloadVisibleAreaImages])
+
+  // 강화된 스크롤 이벤트 핸들러
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout | null = null
     let isThrottled = false
+    let lastScrollY = 0
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY
+      const direction = currentScrollY > lastScrollY ? 'down' : 'up'
+      lastScrollY = currentScrollY
       
       // 스크롤 위치를 localStorage에 저장 (throttle)
       if (scrollTimeout) clearTimeout(scrollTimeout)
@@ -212,17 +291,26 @@ export default function Home() {
         // 스크롤 시 현재 화면 기준 스마트 프리로딩 실행
         preloadVisibleAreaImages()
         
-        // 간단한 무한 스크롤만 (더 빠른 트리거)
-        if (
-          window.innerHeight + document.documentElement.scrollTop + 400 >= 
-          document.documentElement.offsetHeight &&
-          !loadingMore &&
-          hasMore
-        ) {
-          loadMore()
+        // 개선된 무한 스크롤 트리거 (아래 방향으로만)
+        if (direction === 'down') {
+          const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+          const scrollPercent = (scrollTop / (scrollHeight - clientHeight)) * 100
+          
+          // 80% 지점에서 트리거하거나, 하단 600px 이내
+          const shouldLoad = scrollPercent > 80 || 
+                           (scrollTop + clientHeight + 600 >= scrollHeight)
+
+          if (shouldLoad && !loadingMore && hasMore) {
+            console.log('🚀 무한스크롤 트리거:', { 
+              scrollPercent: Math.round(scrollPercent), 
+              remaining: scrollHeight - scrollTop - clientHeight 
+            })
+            loadMore()
+          }
         }
+        
         isThrottled = false
-      }, 100)
+      }, 150) // 약간 늘려서 안정성 확보
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -604,6 +692,12 @@ export default function Home() {
                 <div className="text-gray-500 text-sm mt-2">
                   스크롤하여 더 많은 작품 보기
                 </div>
+                {/* 개발환경에서만 디버깅 정보 표시 */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-400 mt-2 bg-gray-100 rounded p-2">
+                    현재 이미지: {images.length}개 | 페이지: A{avatarPage} D{doodlePage} | 더보기: {hasMore ? '가능' : '없음'}
+                  </div>
+                )}
               </div>
             )}
 
@@ -613,6 +707,12 @@ export default function Home() {
                 <div className="text-gray-500 text-sm">
                   모든 작품을 확인했습니다 ✨
                 </div>
+                {/* 개발환경에서만 디버깅 정보 표시 */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-400 mt-2 bg-gray-100 rounded p-2">
+                    총 {images.length}개 이미지 로딩 완료 | 최종 페이지: A{avatarPage} D{doodlePage}
+                  </div>
+                )}
               </div>
             )}
           </>
