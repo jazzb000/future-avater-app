@@ -116,17 +116,19 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       setError(null)
       setIsLoadingCamera(true)
       
-      // 모바일에서는 모달 열기
-      if (isMobile()) {
-        setShowMobileCameraModal(true)
-      }
-      
       // 이미 카메라가 활성화되어 있다면 종료
       if (cameraStream) {
         console.log("기존 카메라 스트림 정리 중...")
         stopCameraStream()
         // 모바일에서 더 긴 대기 시간
         await new Promise(resolve => setTimeout(resolve, isMobile() ? 1500 : 500))
+      }
+      
+      // 모바일에서는 모달 열기 (스트림 정리 후)
+      if (isMobile()) {
+        setShowMobileCameraModal(true)
+        // 모달이 완전히 렌더링될 때까지 잠시 대기
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
       
       // 미디어 장치 지원 여부 확인
@@ -148,8 +150,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         console.log("권한 확인 중 오류 (무시):", permissionError)
       }
       
-      // 모바일 최적화된 카메라 설정
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      // 모바일 최적화된 카메라 설정 (isMobile() 함수와 일치하도록)
+      const isMobileDevice = isMobile()
       const constraints = {
         video: {
           facingMode: "user",
@@ -222,12 +224,28 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           console.warn("비디오 로드 실패하지만 계속 진행")
         }
 
-        // 비디오 재생 시도
+        // 비디오 재생 시도 (모바일 최적화)
         try {
           await videoRef.current.play()
           console.log("비디오 재생 시작됨")
         } catch (playError) {
           console.log("비디오 자동 재생 실패:", playError)
+          
+          // 모바일에서 재생 실패 시 수동 재생 시도
+          if (isMobile()) {
+            console.log("모바일에서 수동 재생 시도")
+            // 사용자 상호작용으로 재생 시도
+            videoRef.current.muted = true
+            videoRef.current.playsInline = true
+            
+            try {
+              await videoRef.current.play()
+              console.log("모바일 수동 재생 성공")
+            } catch (retryError) {
+              console.log("모바일 수동 재생도 실패:", retryError)
+              // 재생 실패해도 카메라 스트림은 활성화된 상태로 유지
+            }
+          }
         }
       }
     } catch (err) {
@@ -240,6 +258,11 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         setIsLoadingCamera(true)
         await new Promise(resolve => setTimeout(resolve, 2000))
         return startCamera(retryCount + 1)
+      }
+      
+      // 최종 실패 시 모바일 모달도 닫기
+      if (isMobile()) {
+        setShowMobileCameraModal(false)
       }
       
       // 모바일에서 더 구체적인 에러 메시지
