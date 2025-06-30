@@ -35,6 +35,7 @@ export default function Home() {
   const [doodlePage, setDoodlePage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
+  const [scrollPosition, setScrollPosition] = useState(0)
   
   // 백그라운드 이미지 프리로딩 (사용자가 모르게 뒷단에서 로딩)
   const preloadImageInBackground = useCallback((url: string) => {
@@ -67,8 +68,8 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 4개씩 가져오기 (모바일 최적화)
-      const limit = 4
+      // 각 타입별로 페이지당 8개씩 가져오기 (더 많은 콘텐츠)
+      const limit = 8
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
@@ -157,16 +158,41 @@ export default function Home() {
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
-  // 스크롤 이벤트 리스너 (더 강한 throttling 적용)
+  // 초기 스크롤 위치 복원
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null
+    const savedScrollPosition = localStorage.getItem('home-scroll-position')
+    if (savedScrollPosition && !loading) {
+      const position = parseInt(savedScrollPosition, 10)
+      setTimeout(() => {
+        window.scrollTo({
+          top: position,
+          behavior: 'smooth'
+        })
+        setScrollPosition(position)
+      }, 300) // 이미지 로딩 후 복원
+    }
+  }, [loading])
+
+  // 스크롤 이벤트 리스너 (스크롤 위치 기억)
+  useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout | null = null
     let isThrottled = false
 
     const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      // 스크롤 위치를 localStorage에 저장 (throttle)
+      if (scrollTimeout) clearTimeout(scrollTimeout)
+      scrollTimeout = setTimeout(() => {
+        localStorage.setItem('home-scroll-position', currentScrollY.toString())
+        setScrollPosition(currentScrollY)
+      }, 500)
+      
       if (isThrottled) return
-
       isThrottled = true
+      
       setTimeout(() => {
+        // 간단한 무한 스크롤만
         if (
           window.innerHeight + document.documentElement.scrollTop + 600 >= 
           document.documentElement.offsetHeight &&
@@ -176,48 +202,57 @@ export default function Home() {
           loadMore()
         }
         isThrottled = false
-      }, 200) // throttling 간격을 200ms로 증가
+      }, 200)
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+
     return () => {
       window.removeEventListener('scroll', handleScroll)
-      if (timeoutId) {
-        clearTimeout(timeoutId)
-      }
+      if (scrollTimeout) clearTimeout(scrollTimeout)
     }
-  }, [loadMore])
+  }, [loadMore, loadingMore, hasMore])
 
-  // Intersection Observer로 이미지 가시성 최적화
+  // 향상된 Intersection Observer - 가시영역 우선 로딩 + 현재 화면 기준
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const img = entry.target.querySelector('img')
-            if (img && !img.complete) {
-              // 이미지가 뷰포트에 들어오면 로딩 우선순위를 높임
-              img.loading = 'eager'
-            }
+          const intersectionRatio = entry.intersectionRatio
+          const cardId = entry.target.id
+          const imageIndex = images.findIndex(img => `card-${img.type}-${img.id}` === cardId)
+          
+          if (imageIndex >= 0) {
+            const image = images[imageIndex]
+            
+            if (entry.isIntersecting) {
+              // 가시영역에 있는 이미지는 최우선 처리
+              const img = entry.target.querySelector('img')
+              if (img && !img.complete) {
+                img.loading = 'eager'
+              }
 
-            // 화면에 보이는 낙서현실화 이미지의 원본도 뒷단에서 프리로딩
-            const cardId = entry.target.id
-            const imageIndex = images.findIndex(img => `card-${img.type}-${img.id}` === cardId)
-            if (imageIndex >= 0) {
-              const image = images[imageIndex]
+              // 현재 화면에 보이는 정도에 따라 즉시 또는 빠른 프리로딩
               if (image.type === 'doodle' && image.original_image_url) {
-                // 사용자가 모르게 조용히 백그라운드에서 로딩
+                const delay = intersectionRatio > 0.5 ? 0 : 200 // 화면 절반 이상 보이면 즉시
                 setTimeout(() => {
                   preloadImageInBackground(image.original_image_url!)
-                }, 1000)
+                }, delay)
+              }
+            } else if (intersectionRatio === 0) {
+              // 완전히 벗어난 이미지는 지연 프리로딩
+              if (image.type === 'doodle' && image.original_image_url) {
+                setTimeout(() => {
+                  preloadImageInBackground(image.original_image_url!)
+                }, 2000)
               }
             }
           }
         })
       },
       {
-        rootMargin: '100px 0px', // 100px 여백으로 미리 로드
-        threshold: 0.1
+        rootMargin: '300px 0px', // 위아래 300px 마진으로 확대
+        threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0] // 더 세밀한 가시성 단계
       }
     )
 
@@ -309,18 +344,22 @@ export default function Home() {
 
       {/* 사용자 갤러리 */}
       <div className="max-w-8xl mx-auto px-4 md:px-6 pb-32">
-        {loading ? (
+                {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="overflow-hidden border-2 border-gray-200 rounded-2xl animate-pulse">
-                <div className="aspect-[3/4] bg-gray-200" />
-                <CardContent className="p-4">
-                  <div className="h-4 bg-gray-200 rounded mb-2" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3" />
+            {Array.from({ length: 12 }).map((_, i) => (
+              <Card key={i} className="overflow-hidden border border-gray-200 rounded-2xl">
+                <div className="aspect-[3/4] bg-gray-200 animate-shimmer rounded-t-2xl" />
+                <CardContent className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded animate-shimmer" />
+                  <div className="h-3 bg-gray-200 rounded w-2/3 animate-shimmer" />
+                  <div className="flex gap-2">
+                    <div className="h-6 w-16 bg-gray-200 rounded-full animate-shimmer" />
+                    <div className="h-6 w-12 bg-gray-200 rounded-full animate-shimmer" />
+                  </div>
                 </CardContent>
               </Card>
             ))}
-              </div>
+          </div>
                  ) : images.length > 0 ? (
            <>
              {/* Masonry Layout with react-masonry-css */}
@@ -354,8 +393,8 @@ export default function Home() {
                            width={400}
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
-                           loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 6}
+                           loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < 4}
                            quality={75}
                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                            placeholder="blur"
@@ -432,13 +471,22 @@ export default function Home() {
                })}
              </Masonry>
 
-            {/* 로딩 더 보기 스피너 */}
+            {/* 로딩 더 보기 스켈레톤 */}
             {loadingMore && (
-              <div className="text-center mt-8">
-                <div className="flex justify-center items-center gap-2 text-gray-600">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
-                  <span>더 많은 작품을 불러오는 중...</span>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-8">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={`loading-${i}`} className="overflow-hidden border border-gray-200 rounded-2xl">
+                    <div className="aspect-[3/4] bg-gray-200 animate-shimmer rounded-t-2xl" />
+                    <CardContent className="p-4 space-y-3">
+                      <div className="h-4 bg-gray-200 rounded animate-shimmer" />
+                      <div className="h-3 bg-gray-200 rounded w-2/3 animate-shimmer" />
+                      <div className="flex gap-2">
+                        <div className="h-6 w-16 bg-gray-200 rounded-full animate-shimmer" />
+                        <div className="h-6 w-12 bg-gray-200 rounded-full animate-shimmer" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
 
