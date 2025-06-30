@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Upload, Camera } from "lucide-react"
+import { Upload, Camera, RotateCw } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface UploadStepProps {
@@ -22,6 +22,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
   const [isLoadingCamera, setIsLoadingCamera] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
   const [showMobileCameraModal, setShowMobileCameraModal] = useState(false)
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user') // 전면/후면 카메라
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([])
+  const [currentCameraId, setCurrentCameraId] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -113,6 +116,32 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     }
   }
 
+  // 사용 가능한 카메라 목록 가져오기
+  const getAvailableCameras = async () => {
+    if (typeof window === 'undefined') return []
+    
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const cameras = devices.filter(device => device.kind === 'videoinput')
+      setAvailableCameras(cameras)
+      return cameras
+    } catch (error) {
+      console.error("카메라 목록 가져오기 실패:", error)
+      return []
+    }
+  }
+
+  // 카메라 전환 (전면/후면)
+  const switchCamera = async () => {
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user'
+    setFacingMode(newFacingMode)
+    
+    // 현재 스트림 정리 후 새 카메라로 시작
+    stopCameraStream()
+    await new Promise(resolve => setTimeout(resolve, 500))
+    startCamera()
+  }
+
   // 비디오 완전 로딩 대기 함수
   const waitForVideoReady = async (video: HTMLVideoElement, timeout = 10000): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -157,15 +186,15 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
 
   // 강화된 카메라 시작 함수
   const startCamera = async (retryCount = 0): Promise<boolean> => {
+    // 모바일에서는 전체화면 모달 먼저 표시
+    if (isMobile()) {
+      setShowMobileCameraModal(true)
+    }
+    
     try {
       console.log(`카메라 시작 함수 호출됨 (시도 ${retryCount + 1})`)
       setError(null)
       setIsLoadingCamera(true)
-      
-      // 모바일에서는 모달 열기
-      if (isMobile()) {
-        setShowMobileCameraModal(true)
-      }
       
       // 이미 카메라가 활성화되어 있다면 종료
       if (cameraStream) {
@@ -194,11 +223,15 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         console.log("권한 확인 중 오류 (무시):", permissionError)
       }
       
+      // 사용 가능한 카메라 목록 가져오기
+      await getAvailableCameras()
+
       // 모바일 최적화된 카메라 설정
       const isMobileDevice = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      const constraints = {
+      const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: "user",
+          facingMode: facingMode, // 전면/후면 카메라 설정
+          ...(currentCameraId ? { deviceId: { exact: currentCameraId } } : {}),
           ...(isMobileDevice ? {
             // 모바일에서는 더 낮은 해상도로 시작
             width: { ideal: 640, min: 480 },
@@ -832,14 +865,31 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           {/* 모달 헤더 */}
           <div className="flex justify-between items-center p-4 bg-purple-600 text-white">
             <h2 className="text-lg font-semibold">사진 촬영</h2>
-            <Button
-              onClick={closeMobileCameraModal}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-purple-700"
-            >
-              ✕
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* 카메라 전환 버튼 */}
+              {availableCameras.length > 1 && (
+                <Button
+                  onClick={switchCamera}
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-purple-700 p-2"
+                  disabled={isLoadingCamera}
+                >
+                  <RotateCw size={20} />
+                  <span className="ml-1 text-xs">
+                    {facingMode === 'user' ? '전면' : '후면'}
+                  </span>
+                </Button>
+              )}
+              <Button
+                onClick={closeMobileCameraModal}
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-purple-700"
+              >
+                ✕
+              </Button>
+            </div>
           </div>
 
           {/* 카메라 영역 */}

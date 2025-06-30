@@ -589,9 +589,9 @@ export default function Home() {
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
                            loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 8}
+                           priority={images.indexOf(image) < 4}
                            quality={85}
-                           fetchPriority={images.indexOf(image) < 8 ? "high" : "auto"}
+                           fetchPriority={images.indexOf(image) < 4 ? "high" : "auto"}
                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                            onLoad={() => {
                              // 이미지 로드 완료 후 카드 전체를 빠르게 표시
