@@ -277,7 +277,7 @@ export default function Home() {
                          <img
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
-                           className="w-full h-auto object-contain transition-transform duration-300 md:group-hover:scale-105"
+                           className="w-full h-auto object-contain transition-transform duration-300"
                            loading="lazy"
                            onLoad={(e) => {
                              // 이미지 로드 완료 후 카드 전체를 표시
@@ -288,8 +288,8 @@ export default function Home() {
                            }}
                          />
                            
-                           {/* 오버레이 그라디언트 */}
-                           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 md:from-black/20 md:to-black/40 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
+                           {/* 오버레이 그라디언트 - 하단에서만 표시되도록 수정 */}
+                           <div className="absolute inset-0 bg-gradient-to-b from-transparent from-60% via-transparent via-80% to-black/30 opacity-100 transition-opacity duration-300" />
                            
                            {/* 타입 배지 */}
                            <Badge 
@@ -314,9 +314,9 @@ export default function Home() {
 
 
 
-                           {/* 하단 정보 */}
-                           <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-0 md:translate-y-2 md:group-hover:translate-y-0 transition-transform duration-300">
-                             <h3 className="text-sm font-medium mb-1">
+                           {/* 하단 정보 - 항상 표시되도록 수정 */}
+                           <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-0 transition-transform duration-300">
+                             <h3 className="text-sm font-medium mb-1 drop-shadow-md">
                                {image.type === 'doodle' 
                                  ? `${image.style} 스타일`
                                  : `${getAgeLabel(image.age || '')} ${getJobLabel(image.job || '')}`
