@@ -109,16 +109,10 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     setError(null)
     setActiveTab(value)
     
+    // 탭 변경 시 자동 시작 로직 제거
+    // 사용자가 '카메라 켜기' 버튼을 눌렀을 때만 startCamera()가 호출되도록 변경
     if (value === "camera") {
-      // 모바일에서는 수동 시작, 데스크톱에서는 자동 시작
-      if (!isMobile()) {
-        setTimeout(() => {
-          console.log("🖥️ 데스크톱 - 자동 카메라 시작")
-          startCamera()
-        }, 800) // 더 긴 대기 시간
-      } else {
-        console.log("📱 모바일 - 수동 카메라 시작 대기")
-      }
+      console.log("📸 카메라 탭으로 전환됨. 사용자 입력을 기다립니다.");
     }
   }
 
@@ -185,8 +179,35 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       // 모바일 모달 활성화
       if (isMobile()) {
         setShowMobileCameraModal(true)
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
+      
+      // DOM 렌더링 대기 - 비디오 요소가 준비될 때까지 대기
+      console.log("⏳ 비디오 요소 렌더링 대기 중...")
+      let domWaitCount = 0
+      const maxDomWait = 20 // 2초 대기
+      
+      while (!videoRef.current && domWaitCount < maxDomWait) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        domWaitCount++
+        
+        if (domWaitCount % 5 === 0) {
+          console.log(`⏳ DOM 대기 중... (${domWaitCount}/${maxDomWait})`)
+        }
+      }
+      
+      // 비디오 요소 최종 확인
+      if (!videoRef.current) {
+        console.error("❌ 비디오 요소를 찾을 수 없습니다:", {
+          activeTab,
+          isCameraActive,
+          showMobileCameraModal,
+          videoRefExists: !!videoRef.current
+        })
+        throw new Error("UI가 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.")
+      }
+      
+      console.log("✅ 비디오 요소 확인 완료", videoRef.current)
       
       // 브라우저 지원 확인
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -230,11 +251,25 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         throw new Error("카메라 스트림을 획득할 수 없습니다.")
       }
       
-      console.log("✅ 카메라 스트림 획득 성공")
+      console.log("✅ 카메라 스트림 획득 성공", stream)
       
-      // 비디오 요소에 스트림 연결
-      if (!videoRef.current) {
-        throw new Error("비디오 요소를 찾을 수 없습니다.")
+      // 비디오 요소에 스트림 연결 및 강력한 디버깅
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        console.log('🎥 [디버그] videoRef.current.srcObject 할당됨:', videoRef.current.srcObject)
+        setTimeout(() => {
+          if (videoRef.current) {
+            console.log('🎥 [디버그] video.srcObject:', videoRef.current.srcObject)
+            console.log('🎥 [디버그] video.videoWidth:', videoRef.current.videoWidth)
+            console.log('🎥 [디버그] video.videoHeight:', videoRef.current.videoHeight)
+            console.log('🎥 [디버그] video.readyState:', videoRef.current.readyState)
+            console.log('🎥 [디버그] video.paused:', videoRef.current.paused)
+            console.log('🎥 [디버그] video.ended:', videoRef.current.ended)
+            console.log('🎥 [디버그] video.currentTime:', videoRef.current.currentTime)
+          }
+        }, 1000)
+      } else {
+        console.error('❌ [디버그] videoRef.current 없음 (스트림 할당 시점)')
       }
       
       const video = videoRef.current
@@ -244,9 +279,6 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       video.muted = true
       video.autoplay = true
       video.controls = false
-      
-      // 스트림 연결
-      video.srcObject = stream
       
       // 비디오 로드 시작
       video.load()
@@ -286,10 +318,20 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       console.error("❌ 카메라 시작 실패:", error)
       setIsLoadingCamera(false)
       
-      // 재시도 로직
-      if (retryCount < 2) {
-        console.log(`🔄 카메라 재시도 ${retryCount + 1}/2`)
-        await new Promise(resolve => setTimeout(resolve, 2000))
+      // DOM 요소 오류의 경우 재시도하지 않음
+      if (error instanceof Error && error.message.includes("비디오 요소")) {
+        console.log("🚫 DOM 요소 문제로 재시도 중단")
+        if (isMobile()) {
+          setShowMobileCameraModal(false)
+        }
+        setError("화면 준비 중입니다. 잠시 후 다시 시도해주세요.")
+        return false
+      }
+      
+      // 일반적인 카메라 오류는 제한적 재시도
+      if (retryCount < 1) { // 최대 1회만 재시도로 변경
+        console.log(`🔄 카메라 재시도 ${retryCount + 1}/1`)
+        await new Promise(resolve => setTimeout(resolve, 3000)) // 3초로 증가
         return startCamera(retryCount + 1)
       }
       
@@ -601,14 +643,13 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                       autoPlay
                       playsInline
                       muted
-                      onLoadedData={() => console.log("비디오 데이터 로드 완료")}
-                      onCanPlay={() => console.log("비디오 재생 가능")}
-                      onLoadedMetadata={() => console.log("비디오 메타데이터 로드 완료")}
-                      className="w-full rounded-xl border-4 border-pink-300 touch-none"
-                      style={{ 
-                        WebkitUserSelect: 'none',
-                        userSelect: 'none',
-                        WebkitTouchCallout: 'none'
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        background: '#000',
+                        objectFit: 'cover',
+                        display: 'block',
+                        borderRadius: '1rem',
                       }}
                     />
                     <canvas ref={canvasRef} className="hidden" />
@@ -660,10 +701,10 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                       <Camera size={36} className="text-purple-500" />
                     </div>
                     <p className="mb-4 text-purple-500 font-medium">
-                      {isMobile() ? "전체화면 카메라로 사진을 촬영하세요" : "카메라를 활성화하여 사진을 촬영하세요"}
+                      카메라를 활성화하여 사진을 촬영하세요
                     </p>
                     <div className="flex flex-col gap-2">
-                    <Button
+                      <Button
                         onClick={() => {
                           console.log("카메라 켜기 버튼 클릭됨")
                           setError(null)
@@ -671,12 +712,12 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                         }}
                         disabled={isLoadingCamera}
                         className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
-                    >
-                      <Camera className="mr-2 h-4 w-4" /> 
-                      {isMobile() ? "전체화면 카메라 켜기" : "카메라 켜기"}
-                    </Button>
+                      >
+                        <Camera className="mr-2 h-4 w-4" /> 
+                        카메라 켜기
+                      </Button>
                       <p className="text-xs text-gray-500 text-center">
-                        {isMobile() ? "전체화면 모드로 카메라가 열립니다" : "카메라 권한을 허용해주세요"}
+                        카메라 권한을 허용해주세요
                       </p>
                     </div>
                   </div>
@@ -718,11 +759,13 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover rounded-lg"
-                  style={{ 
-                    WebkitUserSelect: 'none',
-                    userSelect: 'none',
-                    WebkitTouchCallout: 'none'
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: '#000',
+                    objectFit: 'cover',
+                    display: 'block',
+                    borderRadius: '1rem',
                   }}
                 />
                 <canvas ref={canvasRef} className="hidden" />
