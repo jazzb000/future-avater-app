@@ -266,9 +266,9 @@ export default function ProfilePage() {
 
   // 이미지 공유
   const handleShare = async (imageUrl: string, title: string) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
+          if (typeof window !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
           title: title,
           text: "멋진 이미지를 확인해보세요!",
           url: imageUrl,
@@ -279,7 +279,9 @@ export default function ProfilePage() {
     } else {
       // 공유 API가 지원되지 않으면 클립보드에 복사
       try {
-        await navigator.clipboard.writeText(imageUrl)
+        if (typeof window !== 'undefined' && navigator.clipboard) {
+          await navigator.clipboard.writeText(imageUrl)
+        }
         alert("링크가 클립보드에 복사되었습니다.")
       } catch (error) {
         console.error("클립보드 복사 실패:", error)

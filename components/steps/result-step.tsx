@@ -121,7 +121,7 @@ export function ResultStep({
   }
 
   const handleShare = async () => {
-    if (generatedImage && navigator.share) {
+    if (generatedImage && typeof window !== 'undefined' && navigator.share) {
       try {
         let blob: Blob
 
@@ -145,7 +145,7 @@ export function ResultStep({
       } catch (error) {
         console.error("공유 중 오류:", error)
         // 공유 실패 시 클립보드에 복사
-        if (navigator.clipboard && window.location.href) {
+        if (typeof window !== 'undefined' && navigator.clipboard && window.location.href) {
           try {
             await navigator.clipboard.writeText(window.location.href)
             alert("링크가 클립보드에 복사되었습니다.")

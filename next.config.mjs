@@ -14,7 +14,6 @@ const nextConfig = {
           // 프로덕션에서는 최적화 활성화
           formats: ['image/webp', 'image/avif'],
           minimumCacheTTL: 604800, // 7일 캐시 (더 길게)
-          maximumFileSizeToOptimize: 4000000, // 4MB까지 최적화
         }
     ),
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],

@@ -33,9 +33,10 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
 
   // 모바일 감지 함수
-  const isMobile = () => {
+    const isMobile = () => {
+    if (typeof window === 'undefined') return false
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           (typeof window !== 'undefined' && window.innerWidth <= 768)
+      window.innerWidth <= 768
   }
 
   // 카메라 스트림 정리 함수
@@ -234,7 +235,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
       }
       
       // 미디어 장치 지원 여부 확인
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (typeof window === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("이 브라우저는 카메라를 지원하지 않습니다.")
       }
       
@@ -253,7 +254,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
       }
       
       // 모바일 최적화된 카메라 설정
-      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      const isMobileDevice = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
       const constraints = {
         video: {
           facingMode: "user",
