@@ -37,9 +37,14 @@ export default function Home() {
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
   const [scrollPosition, setScrollPosition] = useState(0)
   
-  // 스마트 프리로딩: 현재 보는 화면 + 바로 아래만
+  // 스마트 프리로딩: Next.js Image와 동일한 최적화 URL 사용
   const preloadImageSmart = useCallback((url: string) => {
     if (!url || preloadedImages.has(url)) return
+    
+    // Next.js 이미지 최적화 URL 생성 (빌드환경 고려)
+    const nextImageUrl = process.env.NODE_ENV === 'development' 
+      ? url // 개발환경에서는 원본 URL
+      : `/_next/image?url=${encodeURIComponent(url)}&w=640&q=85` // 빌드환경에서는 최적화 URL (갤러리와 동일한 quality)
     
     const img = document.createElement('img')
     img.onload = () => {
@@ -48,16 +53,16 @@ export default function Home() {
     img.onerror = () => {
       // 에러는 조용히 처리
     }
-    img.src = url
+    img.src = nextImageUrl
   }, [preloadedImages])
 
-  // 현재 뷰포트 기준으로 보이는 영역의 이미지만 프리로딩
+  // 확장된 프리로딩: 보이는 영역 + 메인 이미지들
   const preloadVisibleAreaImages = useCallback(() => {
     const viewportHeight = window.innerHeight
     const scrollTop = window.scrollY
-    const preloadZoneEnd = scrollTop + viewportHeight * 1.5 // 현재 화면 + 아래 0.5화면
+    const preloadZoneEnd = scrollTop + viewportHeight * 2.0 // 현재 화면 + 아래 1화면 (더 확장)
 
-    // 현재 화면과 바로 아래 영역의 낙서 이미지만 선별
+    // 1. 낙서 원본 이미지 프리로딩 (기존)
     const visibleDoodleImages = images
       .map((img, index) => ({ ...img, index }))
       .filter((img, arrayIndex) => {
@@ -77,14 +82,41 @@ export default function Home() {
         const cardTop = row * estimatedCardHeight + 300
         return cardTop <= preloadZoneEnd
       })
-      .slice(0, 6) // 최대 6개만
+      .slice(0, 8) // 더 많이 프리로딩
 
-    // 순차 프리로딩 (동시 로딩 제한)
+    // 2. 메인 갤러리 이미지도 적극적으로 프리로딩 (새로 추가)
+    const visibleMainImages = images
+      .filter((img, index) => {
+        // 첫 16개는 즉시 프리로딩
+        if (index < 16) return true
+        
+        // 나머지는 뷰포트 기준
+        const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
+        if (cardElement) {
+          const rect = cardElement.getBoundingClientRect()
+          const absoluteTop = rect.top + scrollTop
+          return absoluteTop <= preloadZoneEnd
+        }
+        return false
+      })
+      .slice(0, 16) // 최대 16개
+
+    // 낙서 원본 프리로딩
     visibleDoodleImages.forEach((image, index) => {
       if (image.original_image_url) {
         setTimeout(() => {
           preloadImageSmart(image.original_image_url!)
-        }, index * 100) // 100ms 간격
+        }, index * 50) // 더 빠른 간격
+      }
+    })
+
+    // 메인 이미지 프리로딩 (빌드환경에서도 빠른 로딩)
+    visibleMainImages.forEach((image, index) => {
+      const mainImageUrl = image.type === 'doodle' ? image.result_image_url : image.image_url
+      if (mainImageUrl && index >= 8) { // 첫 8개는 이미 priority 처리됨
+        setTimeout(() => {
+          preloadImageSmart(mainImageUrl)
+        }, (index - 8) * 50 + 200) // 낙서 원본 이후에 시작
       }
     })
   }, [images, preloadImageSmart])
@@ -140,7 +172,7 @@ export default function Home() {
       // 새로 로드된 이미지 후 스마트 프리로딩 실행 (더 빠르게)
       setTimeout(() => {
         preloadVisibleAreaImages()
-      }, 300) // 메인 이미지들이 로딩된 후 0.3초 뒤 시작
+      }, 100) // 메인 이미지들이 로딩된 후 0.1초 뒤 시작
 
       // 더 불러올 데이터가 있는지 확인
       const avatarHasMore = avatarData.success && avatarData.images && avatarData.images.length === limit
@@ -243,7 +275,7 @@ export default function Home() {
       // 프리로딩 실행
       setTimeout(() => {
         preloadVisibleAreaImages()
-      }, 200)
+      }, 100)
 
       // 성공적으로 로드했으면 에러 카운트 리셋
       localStorage.removeItem('loadMoreErrorCount')
@@ -310,7 +342,7 @@ export default function Home() {
         }
         
         isThrottled = false
-      }, 150) // 약간 늘려서 안정성 확보
+      }, 100) // 더 빠른 응답
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -556,13 +588,11 @@ export default function Home() {
                            width={400}
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
-                           loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 6}
-                           quality={80}
-                           fetchPriority={images.indexOf(image) < 4 ? "high" : "auto"}
+                           loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < 8}
+                           quality={85}
+                           fetchPriority={images.indexOf(image) < 8 ? "high" : "auto"}
                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                           placeholder="blur"
-                           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkbHB0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                            onLoad={() => {
                              // 이미지 로드 완료 후 카드 전체를 빠르게 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
@@ -832,7 +862,7 @@ export default function Home() {
                        height={600}
                        className="w-full h-auto object-contain rounded-lg border bg-white"
                        style={{ maxHeight: '50vh' }}
-                       quality={80}
+                       quality={85}
                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                      />
                    </div>
@@ -845,7 +875,7 @@ export default function Home() {
                        height={600}
                        className="w-full h-auto object-contain rounded-lg"
                        style={{ maxHeight: '50vh' }}
-                       quality={80}
+                       quality={85}
                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                      />
                    </div>
@@ -859,7 +889,7 @@ export default function Home() {
                      width={400}
                      height={600}
                      className="w-full h-auto object-contain rounded-lg max-h-[60vh] mx-auto"
-                     quality={80}
+                     quality={85}
                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                    />
                  </div>
