@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sparkles, Pencil, Plus, Clock, Palette, User } from "lucide-react"
+import Masonry from 'react-masonry-css'
 
 type GalleryImage = {
   id: string
@@ -220,26 +221,26 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-50 via-purple-50 to-pink-50 relative">
         {/* 헤더 */}
-      <div className="text-center pt-8 pb-6 px-4">
-        <h1 className="text-3xl md:text-5xl font-bold text-gray-800 mb-3 font-display">
+      <div className="text-center pt-12 pb-10 px-6">
+        <h1 className="text-5xl md:text-7xl font-bold text-gray-800 mb-6 font-display">
             돌핀인캘리 AI
           </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-2">
+        <p className="text-xl md:text-2xl text-gray-600 max-w-4xl mx-auto mb-4">
             AI로 상상하는 미래와 창작하는 현실을 경험해보세요
           </p>
-        <p className="text-sm text-gray-500">
+        <p className="text-lg text-gray-500">
           다른 사용자들이 만든 놀라운 작품들을 구경해보세요 ✨
           </p>
         </div>
 
       {/* 사용자 갤러리 */}
-      <div className="max-w-7xl mx-auto px-4 pb-24">
+      <div className="max-w-8xl mx-auto px-6 pb-32">
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 9 }).map((_, i) => (
               <Card key={i} className="overflow-hidden border-2 border-gray-200 rounded-2xl animate-pulse">
-                <div className="aspect-square bg-gray-200" />
-                <CardContent className="p-3">
+                <div className="aspect-[3/4] bg-gray-200" />
+                <CardContent className="p-4">
                   <div className="h-4 bg-gray-200 rounded mb-2" />
                   <div className="h-3 bg-gray-200 rounded w-2/3" />
                 </CardContent>
@@ -248,15 +249,24 @@ export default function Home() {
               </div>
                  ) : images.length > 0 ? (
            <>
-             {/* Masonry Layout */}
-             <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+             {/* Masonry Layout with react-masonry-css */}
+             <Masonry
+               breakpointCols={{
+                 default: 3,  // 기본 3열로 줄임
+                 1024: 2,     // lg에서 2열
+                 768: 2,      // md에서 2열
+                 640: 1       // sm에서 1열
+               }}
+               className="flex w-auto -ml-6"
+               columnClassName="pl-6 bg-clip-padding"
+             >
                {images.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
                  
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="break-inside-avoid mb-4 opacity-0 transition-opacity duration-300"
+                     className="mb-6 opacity-0 transition-opacity duration-200"
                      id={`card-${image.type}-${image.id}`}
                    >
                      <Card 
@@ -267,7 +277,7 @@ export default function Home() {
                          <img
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
-                           className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                           className="w-full h-auto object-contain transition-transform duration-300 md:group-hover:scale-105"
                            loading="lazy"
                            onLoad={(e) => {
                              // 이미지 로드 완료 후 카드 전체를 표시
@@ -279,7 +289,7 @@ export default function Home() {
                          />
                            
                            {/* 오버레이 그라디언트 */}
-                           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 md:from-black/20 md:to-black/40 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
                            
                            {/* 타입 배지 */}
                            <Badge 
@@ -305,13 +315,14 @@ export default function Home() {
 
 
                            {/* 하단 정보 */}
-                           <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                           <div className="absolute bottom-0 left-0 right-0 p-4 text-white z-10 transform translate-y-0 md:translate-y-2 md:group-hover:translate-y-0 transition-transform duration-300">
                              <h3 className="text-sm font-medium mb-1">
                                {image.type === 'doodle' 
                                  ? `${image.style} 스타일`
                                  : `${getAgeLabel(image.age || '')} ${getJobLabel(image.job || '')}`
                                }
                              </h3>
+                             {/* 사용자 정보와 날짜 - 나중에 사용할 예정으로 주석처리
                              <div className="flex items-center justify-between text-xs">
                                <div className="flex items-center">
                                  <User className="h-3 w-3 mr-1" />
@@ -322,13 +333,14 @@ export default function Home() {
                                  {new Date(image.created_at).toLocaleDateString()}
                                </div>
                              </div>
+                             */}
                            </div>
                          </div>
                        </Card>
                    </div>
                  )
                })}
-             </div>
+             </Masonry>
 
             {/* 로딩 더 보기 스피너 */}
             {loadingMore && (
@@ -350,16 +362,16 @@ export default function Home() {
             )}
           </>
         ) : (
-          <div className="text-center py-16 bg-white/60 backdrop-blur-sm rounded-2xl border-2 border-gray-200">
-            <div className="text-6xl mb-4">🎨</div>
-            <p className="text-gray-600 font-medium mb-2">아직 작품이 없어요</p>
-            <p className="text-gray-500 text-sm">첫 번째 작품을 만들어보세요!</p>
+          <div className="text-center py-24 bg-white/60 backdrop-blur-sm rounded-3xl border-2 border-gray-200">
+            <div className="text-8xl mb-6">🎨</div>
+            <p className="text-gray-600 font-medium mb-3 text-xl">아직 작품이 없어요</p>
+            <p className="text-gray-500 text-lg">첫 번째 작품을 만들어보세요!</p>
           </div>
         )}
       </div>
 
              {/* 플로팅 액션 버튼 - 하단 중앙 배치 */}
-       <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 flex gap-3 z-50">
+       <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 flex gap-4 z-50">
          {/* 시간버스 버튼 */}
          <div className="relative group">
               <Link href="/future-me">

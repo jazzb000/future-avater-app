@@ -44,7 +44,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       videoRef.current.src = ""
     }
     
-    setIsCameraActive(false)
+      setIsCameraActive(false)
     setIsLoadingCamera(false)
     setIsCapturing(false)
     console.log("카메라 스트림 정리 완료")
@@ -84,9 +84,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       
       if (!isMobile) {
         // 데스크톱에서만 자동 카메라 시작
-        setTimeout(() => {
+      setTimeout(() => {
           console.log("카메라 탭 선택됨 - 카메라 시작 시도 (데스크톱)")
-          startCamera()
+        startCamera()
         }, 300)
       } else {
         console.log("모바일 환경 감지 - 수동 카메라 시작 대기")
@@ -203,7 +203,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         const videoLoaded = await waitForVideoLoad()
         if (!videoLoaded) {
           throw new Error("비디오 로드 실패")
-        }
+          }
 
         // 비디오 재생 시도
         try {
@@ -260,18 +260,18 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     setError(null)
     
     try {
-      if (!canvasRef.current || !videoRef.current) {
-        console.error("캔버스 또는 비디오 요소를 찾을 수 없습니다.")
+    if (!canvasRef.current || !videoRef.current) {
+      console.error("캔버스 또는 비디오 요소를 찾을 수 없습니다.")
         setError("촬영 준비가 되지 않았습니다. 잠시 후 다시 시도해주세요.")
-        return
-      }
+      return
+    }
 
-      const canvas = canvasRef.current
-      const video = videoRef.current
-      const context = canvas.getContext("2d")
+    const canvas = canvasRef.current
+    const video = videoRef.current
+    const context = canvas.getContext("2d")
 
-      if (!context) {
-        console.error("캔버스 컨텍스트를 가져올 수 없습니다.")
+    if (!context) {
+      console.error("캔버스 컨텍스트를 가져올 수 없습니다.")
         setError("촬영 기능에 문제가 있습니다. 브라우저를 새로고침해주세요.")
         return
       }
@@ -280,8 +280,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       if (!cameraStream || !cameraStream.active) {
         console.error("카메라 스트림이 활성화되지 않았습니다.")
         setError("카메라가 연결되지 않았습니다. 카메라를 다시 켜주세요.")
-        return
-      }
+      return
+    }
 
       // 비디오가 로드될 때까지 대기 (최대 5초)
       let retryCount = 0
@@ -299,7 +299,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       }
 
       // 최종 비디오 상태 확인
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
         console.error("비디오 로딩 실패:", {
           videoWidth: video.videoWidth,
           videoHeight: video.videoHeight,
@@ -307,8 +307,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           srcObject: video.srcObject
         })
         setError("카메라 영상을 불러올 수 없습니다. 카메라를 다시 켜보세요.")
-        return
-      }
+      return
+    }
 
       // 모바일에서 더 안정적인 캔버스 크기 설정
       const videoWidth = video.videoWidth
@@ -331,18 +331,18 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       canvas.width = canvasWidth
       canvas.height = canvasHeight
 
-      // 비디오 프레임을 캔버스에 그리기
+    // 비디오 프레임을 캔버스에 그리기
       context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
 
       // 캔버스에서 이미지 데이터 추출 (모바일에서 더 나은 품질)
       const imageData = canvas.toDataURL("image/jpeg", 0.9)
 
       if (imageData && imageData !== "data:,") {
-        setPreviewUrl(imageData)
-        updateSelection("photo", imageData)
+    setPreviewUrl(imageData)
+    updateSelection("photo", imageData)
 
-        // 카메라 스트림 정지
-        stopCameraStream()
+    // 카메라 스트림 정지
+    stopCameraStream()
         console.log("사진 촬영 성공!")
       } else {
         console.error("이미지 데이터를 생성할 수 없습니다.")
@@ -548,7 +548,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                         {isCapturing ? (
                           <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
-                          <Camera size={24} />
+                        <Camera size={24} />
                         )}
                       </Button>
                     </div>
@@ -575,7 +575,7 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                     </div>
                     <p className="mb-4 text-purple-500 font-medium">카메라를 활성화하여 사진을 촬영하세요</p>
                     <div className="flex flex-col gap-2">
-                      <Button
+                    <Button
                         onClick={() => {
                           console.log("카메라 켜기 버튼 클릭됨")
                           setError(null)
@@ -583,9 +583,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                         }}
                         disabled={isLoadingCamera}
                         className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
-                      >
-                        <Camera className="mr-2 h-4 w-4" /> 카메라 켜기
-                      </Button>
+                    >
+                      <Camera className="mr-2 h-4 w-4" /> 카메라 켜기
+                    </Button>
                       <p className="text-xs text-gray-500 text-center">
                         카메라 권한을 허용해주세요
                       </p>

@@ -770,7 +770,7 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   let environmentDescription = ""
   switch (job) {
     case "none":
-      jobDescription = ""
+      jobDescription = "직업없음"
       environmentDescription = ""
       break
     case "doctor":
