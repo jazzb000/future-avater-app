@@ -34,6 +34,20 @@ export default function Home() {
   const [doodlePage, setDoodlePage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
+  
+  // 백그라운드 이미지 프리로딩 (사용자가 모르게 뒷단에서 로딩)
+  const preloadImageInBackground = useCallback((url: string) => {
+    if (!url || preloadedImages.has(url)) return
+    
+    const img = new Image()
+    img.onload = () => {
+      setPreloadedImages(prev => new Set(prev).add(url))
+    }
+    img.onerror = () => {
+      // 에러는 조용히 처리 (사용자에게 보이지 않음)
+    }
+    img.src = url
+  }, [preloadedImages])
 
   // 중복 제거 헬퍼 함수
   const removeDuplicates = useCallback((newImages: GalleryImage[], existingImages: GalleryImage[]) => {
@@ -82,6 +96,17 @@ export default function Home() {
           return [...prev, ...uniqueNewImages]
         })
       }
+
+      // 새로 로드된 낙서현실화 이미지의 원본들을 뒷단에서 미리 로딩
+      setTimeout(() => {
+        newImages
+          .filter(img => img.type === 'doodle' && img.original_image_url)
+          .forEach(img => {
+            if (img.original_image_url) {
+              preloadImageInBackground(img.original_image_url)
+            }
+          })
+      }, 1500) // 메인 이미지들이 로딩된 후 1.5초 뒤 시작
 
       // 더 불러올 데이터가 있는지 확인
       const avatarHasMore = avatarData.success && avatarData.images.length === limit
@@ -173,11 +198,24 @@ export default function Home() {
               // 이미지가 뷰포트에 들어오면 로딩 우선순위를 높임
               img.loading = 'eager'
             }
+
+            // 화면에 보이는 낙서현실화 이미지의 원본도 뒷단에서 프리로딩
+            const cardId = entry.target.id
+            const imageIndex = images.findIndex(img => `card-${img.type}-${img.id}` === cardId)
+            if (imageIndex >= 0) {
+              const image = images[imageIndex]
+              if (image.type === 'doodle' && image.original_image_url) {
+                // 사용자가 모르게 조용히 백그라운드에서 로딩
+                setTimeout(() => {
+                  preloadImageInBackground(image.original_image_url!)
+                }, 1000)
+              }
+            }
           }
         })
       },
       {
-        rootMargin: '50px 0px', // 50px 여백으로 미리 로드
+        rootMargin: '100px 0px', // 100px 여백으로 미리 로드
         threshold: 0.1
       }
     )
@@ -187,12 +225,17 @@ export default function Home() {
     imageCards.forEach(card => observer.observe(card))
 
     return () => observer.disconnect()
-  }, [images])
+  }, [images, preloadImageInBackground])
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
     setSelectedImage(image)
     setModalOpen(true)
+    
+    // 혹시 아직 프리로딩 안된 원본이 있으면 즉시 로딩
+    if (image.type === 'doodle' && image.original_image_url && !preloadedImages.has(image.original_image_url)) {
+      preloadImageInBackground(image.original_image_url)
+    }
   }
 
   // 모달 닫기
