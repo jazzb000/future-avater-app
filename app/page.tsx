@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Sparkles, Pencil, Plus, Clock, Palette, User } from "lucide-react"
+import Image from "next/image"
 import Masonry from 'react-masonry-css'
 
 type GalleryImage = {
@@ -40,7 +40,7 @@ export default function Home() {
   const preloadImageInBackground = useCallback((url: string) => {
     if (!url || preloadedImages.has(url)) return
     
-    const img = new globalThis.Image()
+    const img = document.createElement('img')
     img.onload = () => {
       setPreloadedImages(prev => new Set(prev).add(url))
     }
@@ -130,6 +130,10 @@ export default function Home() {
   // 더 많은 이미지 로드 (교대로 아바타와 낙서 페이지 증가)
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
+      // 현재 스크롤 위치 저장
+      const currentScrollY = window.scrollY
+      const currentDocumentHeight = document.documentElement.scrollHeight
+      
       // 아바타와 낙서를 교대로 로드
       if (avatarPage <= doodlePage) {
         setAvatarPage(prev => prev + 1)
@@ -137,8 +141,19 @@ export default function Home() {
         setDoodlePage(prev => prev + 1)
       }
       
-      // 즉시 로딩 (지연 제거로 성능 향상)
-      fetchImages(false)
+      // fetchImages 호출을 setTimeout으로 지연시켜 상태 업데이트 후 실행
+      setTimeout(async () => {
+        try {
+          await fetchImages(false)
+          // 새 이미지 로딩 완료 후 스크롤 위치 조정
+          requestAnimationFrame(() => {
+            // 새 컨텐츠가 추가된 만큼 스크롤 위치를 아래로 조정하지 않고 원래 위치 유지
+            window.scrollTo(0, currentScrollY)
+          })
+        } catch (error) {
+          console.error('이미지 로딩 중 오류:', error)
+        }
+      }, 0)
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
@@ -336,15 +351,15 @@ export default function Home() {
                          <Image
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
-                           width={500}
+                           width={400}
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
                            loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
                            priority={images.indexOf(image) < 4}
-                           quality={80}
+                           quality={90}
                            placeholder="blur"
-                           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
-                           onLoad={(e) => {
+                           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkbHB0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+                           onLoad={() => {
                              // 이미지 로드 완료 후 카드 전체를 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
@@ -352,7 +367,7 @@ export default function Home() {
                                cardElement.style.transform = 'translateY(0)';
                              }
                            }}
-                           onError={(e) => {
+                           onError={() => {
                              // 이미지 로드 실패시에도 카드 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
@@ -544,42 +559,30 @@ export default function Home() {
                  <div className="grid md:grid-cols-2 gap-4 mb-6">
                    <div>
                      <h4 className="text-sm font-medium text-gray-600 mb-2">원본 낙서</h4>
-                     <Image
-                       src={selectedImage.original_image_url || '/placeholder.svg'}
+                     <img
+                       src={selectedImage.original_image_url}
                        alt="원본 낙서"
-                       width={400}
-                       height={400}
                        className="w-full h-auto object-contain rounded-lg border bg-white"
                        style={{ maxHeight: '50vh' }}
-                       quality={90}
-                       priority
                      />
                    </div>
                    <div>
                      <h4 className="text-sm font-medium text-gray-600 mb-2">현실화된 이미지</h4>
-                     <Image
-                       src={selectedImage.result_image_url || '/placeholder.svg'}
+                     <img
+                       src={selectedImage.result_image_url}
                        alt="현실화된 이미지"
-                       width={400}
-                       height={400}
                        className="w-full h-auto object-contain rounded-lg"
                        style={{ maxHeight: '50vh' }}
-                       quality={90}
-                       priority
                      />
                    </div>
                  </div>
                ) : (
                  /* 시간버스: 단일 이미지 */
                  <div className="mb-6">
-                   <Image
-                     src={selectedImage.image_url || '/placeholder.svg'}
+                   <img
+                     src={selectedImage.image_url}
                      alt="시간버스"
-                     width={600}
-                     height={600}
                      className="w-full h-auto object-contain rounded-lg max-h-[60vh] mx-auto"
-                     quality={90}
-                     priority
                    />
                  </div>
                )}
