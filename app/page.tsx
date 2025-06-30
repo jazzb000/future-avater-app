@@ -190,21 +190,6 @@ export default function Home() {
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, fetchImages])
 
-  // 초기 스크롤 위치 복원
-  useEffect(() => {
-    const savedScrollPosition = localStorage.getItem('home-scroll-position')
-    if (savedScrollPosition && !loading) {
-      const position = parseInt(savedScrollPosition, 10)
-      setTimeout(() => {
-        window.scrollTo({
-          top: position,
-          behavior: 'smooth'
-        })
-        setScrollPosition(position)
-      }, 300) // 이미지 로딩 후 복원
-    }
-  }, [loading])
-
   // 스크롤 이벤트 리스너 (스크롤 위치 기억)
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout | null = null
@@ -405,7 +390,7 @@ export default function Home() {
                 <div key={`initial-shimmer-${i}`} className="mb-6">
                   <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
                     <div className="relative overflow-hidden">
-                      <div className={`${randomAspect} bg-gray-200 animate-shimmer`} />
+                      <div className={`w-full ${randomAspect} bg-gray-200 animate-shimmer`} />
                       
                       {/* 배지 시뮬레이션 */}
                       <div className="absolute top-3 left-3 h-6 w-20 bg-gray-300 rounded-full animate-shimmer" style={{animationDelay: `${i * 0.1}s`}} />
@@ -559,7 +544,7 @@ export default function Home() {
                     <div key={`loading-shimmer-${i}`} className="mb-6">
                       <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
                         <div className="relative overflow-hidden">
-                          <div className={`${randomAspect} bg-gray-200 animate-shimmer`} />
+                          <div className={`w-full ${randomAspect} bg-gray-200 animate-shimmer`} />
                           
                                                      {/* 배지 시뮬레이션 */}
                            <div className="absolute top-3 left-3 h-6 w-20 bg-gray-300 rounded-full animate-shimmer" style={{animationDelay: `${i * 0.1}s`}} />
