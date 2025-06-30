@@ -100,21 +100,31 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     }
   }, [])
 
-  // 탭 변경 핸들러
-  const handleTabChange = async (value: string) => {
-    console.log(`🔄 탭 변경: ${activeTab} -> ${value}`)
-    
-    // 이전 스트림 완전 정리
-    await stopCameraStream()
-    setError(null)
+  // 탭 변경 시 카메라 활성화/비활성화 (낙서현실화와 완전 동일)
+  useEffect(() => {
+    if (activeTab === "camera") {
+      // 탭이 변경되자마자 즉시 카메라 시작
+      setTimeout(() => {
+        startCamera()
+      }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
+    } else {
+      stopCameraStream()
+    }
+  }, [activeTab])
+
+  // activeTab이 변경될 때마다 강제로 카메라 상태 초기화 (낙서현실화와 완전 동일)
+  const handleTabChange = (value: string) => {
+    console.log(`탭 변경: ${activeTab} -> ${value}`)
     setActiveTab(value)
     
-    // 카메라 탭으로 변경 시 자동 시작 (낙서현실화와 동일)
     if (value === "camera") {
-      console.log("📸 카메라 탭으로 전환됨. 자동 카메라 시작...")
+      // 이전 스트림이 있다면 정리
+      stopCameraStream()
+      setError(null) // 이전 에러 상태 초기화
       
-      // 모바일에서는 사용자 액션 대기, 데스크톱에서는 자동 시작
+      // 모바일에서는 자동 카메라 시작을 하지 않고 사용자 액션을 기다림      
       if (!isMobile()) {
+        // 데스크톱에서만 자동 카메라 시작
         setTimeout(() => {
           console.log("카메라 탭 선택됨 - 카메라 시작 시도 (데스크톱)")
           startCamera()
@@ -122,6 +132,9 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       } else {
         console.log("모바일 환경 감지 - 수동 카메라 시작 대기")
       }
+    } else {
+      // 다른 탭으로 이동할 때는 카메라 정리
+      stopCameraStream()
     }
   }
 
@@ -831,20 +844,38 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                     </p>
                     <div className="flex flex-col gap-2">
                       <Button
-                        onClick={() => {
-                          console.log("카메라 켜기 버튼 클릭됨")
+                        onClick={async () => {
+                          console.log("🎥 카메라 켜기 버튼 클릭됨 - 사용자 액션")
                           setError(null)
-                          startCamera()
+                          
+                          // 브라우저 권한 요청을 위해 바로 startCamera 호출
+                          const result = await startCamera()
+                          
+                          if (!result) {
+                            console.log("❌ 카메라 시작 실패 - 사용자에게 알림")
+                          }
                         }}
                         disabled={isLoadingCamera}
                         className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white disabled:opacity-50"
                       >
                         <Camera className="mr-2 h-4 w-4" /> 
-                        카메라 켜기
+                        {isLoadingCamera ? "카메라 시작 중..." : "카메라 켜기"}
                       </Button>
                       <p className="text-xs text-gray-500 text-center">
-                        카메라 권한을 허용해주세요
+                        브라우저에서 카메라 권한을 허용해주세요
                       </p>
+                      <Button
+                        onClick={() => {
+                          console.log("🔄 권한 재요청 버튼 클릭")
+                          // 브라우저 권한 설정 페이지 안내
+                          setError("브라우저 주소창 옆의 🔒 또는 📷 아이콘을 클릭하여\n카메라 권한을 '허용'으로 변경해주세요")
+                        }}
+                        variant="outline"
+                        size="sm" 
+                        className="text-xs border-purple-300 text-purple-600 hover:bg-purple-50"
+                      >
+                        권한 설정 도움말
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -933,18 +964,25 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                 </div>
                 <p className="text-xl font-medium mb-6">카메라를 시작하세요</p>
                 <Button
-                  onClick={() => {
-                    console.log("모바일 카메라 켜기 버튼 클릭됨")
+                  onClick={async () => {
+                    console.log("🎥 모바일 카메라 켜기 버튼 클릭됨 - 사용자 액션")
                     setError(null)
-                    startCamera()
+                    
+                    // 브라우저 권한 요청을 위해 바로 startCamera 호출
+                    const result = await startCamera()
+                    
+                    if (!result) {
+                      console.log("❌ 모바일 카메라 시작 실패")
+                    }
                   }}
                   disabled={isLoadingCamera}
                   className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 text-lg disabled:opacity-50"
                 >
-                  <Camera className="mr-3 h-6 w-6" /> 카메라 켜기
+                  <Camera className="mr-3 h-6 w-6" /> 
+                  {isLoadingCamera ? "카메라 시작 중..." : "카메라 켜기"}
                 </Button>
                 <p className="text-sm text-white/80 text-center mt-4">
-                  카메라 권한을 허용해주세요
+                  브라우저에서 카메라 권한을 허용해주세요
                 </p>
               </div>
             )}

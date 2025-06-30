@@ -37,8 +37,8 @@ export default function Home() {
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
   const [scrollPosition, setScrollPosition] = useState(0)
   
-  // 백그라운드 이미지 프리로딩 (사용자가 모르게 뒷단에서 로딩)
-  const preloadImageInBackground = useCallback((url: string) => {
+  // 스마트 프리로딩: 현재 보는 화면 + 바로 아래만
+  const preloadImageSmart = useCallback((url: string) => {
     if (!url || preloadedImages.has(url)) return
     
     const img = document.createElement('img')
@@ -46,10 +46,48 @@ export default function Home() {
       setPreloadedImages(prev => new Set(prev).add(url))
     }
     img.onerror = () => {
-      // 에러는 조용히 처리 (사용자에게 보이지 않음)
+      // 에러는 조용히 처리
     }
     img.src = url
   }, [preloadedImages])
+
+  // 현재 뷰포트 기준으로 보이는 영역의 이미지만 프리로딩
+  const preloadVisibleAreaImages = useCallback(() => {
+    const viewportHeight = window.innerHeight
+    const scrollTop = window.scrollY
+    const preloadZoneEnd = scrollTop + viewportHeight * 1.5 // 현재 화면 + 아래 0.5화면
+
+    // 현재 화면과 바로 아래 영역의 낙서 이미지만 선별
+    const visibleDoodleImages = images
+      .map((img, index) => ({ ...img, index }))
+      .filter((img, arrayIndex) => {
+        if (img.type !== 'doodle' || !img.original_image_url) return false
+        
+        // 실제 DOM 요소의 위치 확인
+        const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
+        if (cardElement) {
+          const rect = cardElement.getBoundingClientRect()
+          const absoluteTop = rect.top + scrollTop
+          return absoluteTop <= preloadZoneEnd
+        }
+        
+        // DOM 요소가 없으면 인덱스 기반 추정
+        const estimatedCardHeight = 400
+        const row = Math.floor(arrayIndex / 3)
+        const cardTop = row * estimatedCardHeight + 300
+        return cardTop <= preloadZoneEnd
+      })
+      .slice(0, 6) // 최대 6개만
+
+    // 순차 프리로딩 (동시 로딩 제한)
+    visibleDoodleImages.forEach((image, index) => {
+      if (image.original_image_url) {
+        setTimeout(() => {
+          preloadImageSmart(image.original_image_url!)
+        }, index * 100) // 100ms 간격
+      }
+    })
+  }, [images, preloadImageSmart])
 
   // 중복 제거 헬퍼 함수
   const removeDuplicates = useCallback((newImages: GalleryImage[], existingImages: GalleryImage[]) => {
@@ -68,8 +106,8 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 8개씩 가져오기 (더 많은 콘텐츠)
-      const limit = 8
+      // 각 타입별로 페이지당 6개씩 가져오기 (사용자 화면 우선)
+      const limit = 6
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
@@ -99,16 +137,10 @@ export default function Home() {
         })
       }
 
-      // 새로 로드된 낙서현실화 이미지의 원본들을 뒷단에서 미리 로딩
+      // 새로 로드된 이미지 후 스마트 프리로딩 실행
       setTimeout(() => {
-        newImages
-          .filter(img => img.type === 'doodle' && img.original_image_url)
-          .forEach(img => {
-            if (img.original_image_url) {
-              preloadImageInBackground(img.original_image_url)
-            }
-          })
-      }, 1500) // 메인 이미지들이 로딩된 후 1.5초 뒤 시작
+        preloadVisibleAreaImages()
+      }, 800) // 메인 이미지들이 로딩된 후 0.8초 뒤 시작
 
       // 더 불러올 데이터가 있는지 확인
       const avatarHasMore = avatarData.success && avatarData.images.length === limit
@@ -192,6 +224,9 @@ export default function Home() {
       isThrottled = true
       
       setTimeout(() => {
+        // 스크롤 시 현재 화면 기준 스마트 프리로딩 실행
+        preloadVisibleAreaImages()
+        
         // 간단한 무한 스크롤만
         if (
           window.innerHeight + document.documentElement.scrollTop + 600 >= 
@@ -211,7 +246,7 @@ export default function Home() {
       window.removeEventListener('scroll', handleScroll)
       if (scrollTimeout) clearTimeout(scrollTimeout)
     }
-  }, [loadMore, loadingMore, hasMore])
+  }, [loadMore, loadingMore, hasMore, preloadVisibleAreaImages])
 
   // 향상된 Intersection Observer - 가시영역 우선 로딩 + 현재 화면 기준
   useEffect(() => {
@@ -232,19 +267,12 @@ export default function Home() {
                 img.loading = 'eager'
               }
 
-              // 현재 화면에 보이는 정도에 따라 즉시 또는 빠른 프리로딩
+              // 현재 화면에 보이는 정도에 따라 즉시 프리로딩
               if (image.type === 'doodle' && image.original_image_url) {
                 const delay = intersectionRatio > 0.5 ? 0 : 200 // 화면 절반 이상 보이면 즉시
                 setTimeout(() => {
-                  preloadImageInBackground(image.original_image_url!)
+                  preloadImageSmart(image.original_image_url!)
                 }, delay)
-              }
-            } else if (intersectionRatio === 0) {
-              // 완전히 벗어난 이미지는 지연 프리로딩
-              if (image.type === 'doodle' && image.original_image_url) {
-                setTimeout(() => {
-                  preloadImageInBackground(image.original_image_url!)
-                }, 2000)
               }
             }
           }
@@ -261,7 +289,7 @@ export default function Home() {
     imageCards.forEach(card => observer.observe(card))
 
     return () => observer.disconnect()
-  }, [images, preloadImageInBackground])
+  }, [images, preloadImageSmart])
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
@@ -270,7 +298,7 @@ export default function Home() {
     
     // 혹시 아직 프리로딩 안된 원본이 있으면 즉시 로딩
     if (image.type === 'doodle' && image.original_image_url && !preloadedImages.has(image.original_image_url)) {
-      preloadImageInBackground(image.original_image_url)
+      preloadImageSmart(image.original_image_url)
     }
   }
 
@@ -345,21 +373,53 @@ export default function Home() {
       {/* 사용자 갤러리 */}
       <div className="max-w-8xl mx-auto px-4 md:px-6 pb-32">
                 {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <Card key={i} className="overflow-hidden border border-gray-200 rounded-2xl">
-                <div className="aspect-[3/4] bg-gray-200 animate-shimmer rounded-t-2xl" />
-                <CardContent className="p-4 space-y-3">
-                  <div className="h-4 bg-gray-200 rounded animate-shimmer" />
-                  <div className="h-3 bg-gray-200 rounded w-2/3 animate-shimmer" />
-                  <div className="flex gap-2">
-                    <div className="h-6 w-16 bg-gray-200 rounded-full animate-shimmer" />
-                    <div className="h-6 w-12 bg-gray-200 rounded-full animate-shimmer" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Masonry
+            breakpointCols={{
+              default: 3,
+              1024: 2,
+              768: 2,
+              640: 1
+            }}
+            className="flex w-auto -ml-4 md:-ml-6"
+            columnClassName="pl-4 md:pl-6 bg-clip-padding"
+          >
+            {Array.from({ length: 12 }).map((_, i) => {
+              // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
+              const aspectRatios = [
+                'aspect-[3/4]',   // 세로형 (기본)
+                'aspect-[4/5]',   // 약간 세로형  
+                'aspect-[1/1]',   // 정사각형
+                'aspect-[3/4]',   // 세로형
+                'aspect-[4/6]',   // 세로형
+                'aspect-[5/7]',   // 세로형
+                'aspect-[3/4]',   // 세로형
+                'aspect-[4/5]',   // 약간 세로형
+                'aspect-[2/3]',   // 세로형
+                'aspect-[3/4]',   // 세로형
+                'aspect-[1/1]',   // 정사각형
+                'aspect-[4/5]'    // 약간 세로형
+              ]
+              const randomAspect = aspectRatios[i]
+              
+              return (
+                <div key={`initial-shimmer-${i}`} className="mb-6">
+                  <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
+                    <div className="relative overflow-hidden">
+                      <div className={`${randomAspect} bg-gray-200 animate-shimmer`} />
+                      
+                      {/* 배지 시뮬레이션 */}
+                      <div className="absolute top-3 left-3 h-6 w-20 bg-gray-300 rounded-full animate-shimmer" style={{animationDelay: `${i * 0.1}s`}} />
+                      
+                      {/* 하단 정보 시뮬레이션 */}
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <div className="h-4 bg-gray-300 rounded w-3/4 animate-shimmer" style={{animationDelay: `${i * 0.15}s`}} />
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              )
+            })}
+          </Masonry>
                  ) : images.length > 0 ? (
            <>
              {/* Masonry Layout with react-masonry-css */}
@@ -471,22 +531,62 @@ export default function Home() {
                })}
              </Masonry>
 
-            {/* 로딩 더 보기 스켈레톤 */}
+            {/* Masonry 스타일 로딩 스켈레톤 */}
             {loadingMore && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-8">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={`loading-${i}`} className="overflow-hidden border border-gray-200 rounded-2xl">
-                    <div className="aspect-[3/4] bg-gray-200 animate-shimmer rounded-t-2xl" />
-                    <CardContent className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-200 rounded animate-shimmer" />
-                      <div className="h-3 bg-gray-200 rounded w-2/3 animate-shimmer" />
-                      <div className="flex gap-2">
-                        <div className="h-6 w-16 bg-gray-200 rounded-full animate-shimmer" />
-                        <div className="h-6 w-12 bg-gray-200 rounded-full animate-shimmer" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <Masonry
+                breakpointCols={{
+                  default: 3,
+                  1024: 2,
+                  768: 2,
+                  640: 1
+                }}
+                className="flex w-auto -ml-4 md:-ml-6 mt-8"
+                columnClassName="pl-4 md:pl-6 bg-clip-padding"
+              >
+                {Array.from({ length: 6 }).map((_, i) => {
+                  // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
+                  const aspectRatios = [
+                    'aspect-[3/4]',   // 세로형 (기본)
+                    'aspect-[4/5]',   // 약간 세로형
+                    'aspect-[1/1]',   // 정사각형
+                    'aspect-[3/4]',   // 세로형
+                    'aspect-[4/6]',   // 세로형
+                    'aspect-[5/7]'    // 세로형
+                  ]
+                  const randomAspect = aspectRatios[i % aspectRatios.length]
+                  
+                  return (
+                    <div key={`loading-shimmer-${i}`} className="mb-6">
+                      <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
+                        <div className="relative overflow-hidden">
+                          <div className={`${randomAspect} bg-gray-200 animate-shimmer`} />
+                          
+                                                     {/* 배지 시뮬레이션 */}
+                           <div className="absolute top-3 left-3 h-6 w-20 bg-gray-300 rounded-full animate-shimmer" style={{animationDelay: `${i * 0.1}s`}} />
+                           
+                           {/* 하단 정보 시뮬레이션 */}
+                           <div className="absolute bottom-0 left-0 right-0 p-4">
+                             <div className="h-4 bg-gray-300 rounded w-3/4 animate-shimmer" style={{animationDelay: `${i * 0.15}s`}} />
+                           </div>
+                        </div>
+                      </Card>
+                    </div>
+                  )
+                })}
+              </Masonry>
+            )}
+
+            {/* 하단 상태 인디케이터 */}
+            {!loadingMore && hasMore && (
+              <div className="text-center mt-8 py-4">
+                <div className="flex items-center justify-center gap-2 text-gray-400">
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+                <div className="text-gray-500 text-sm mt-2">
+                  스크롤하여 더 많은 작품 보기
+                </div>
               </div>
             )}
 
