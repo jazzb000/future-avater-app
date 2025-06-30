@@ -353,19 +353,21 @@ export function Wizard() {
             <ChevronLeft className="mr-2 h-4 w-4" /> 이전
           </Button>
 
-          <Button
-            onClick={currentStep === 4 ? handleGenerate : handleNext}
-            disabled={isNextDisabled() || isGenerating}
-            className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-          >
-            {currentStep === 4 ? (
-              "시간버스 타기"
-            ) : (
-              <>
-                다음 <ChevronRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          {currentStep < 5 && (
+            <Button
+              onClick={currentStep === 4 ? handleGenerate : handleNext}
+              disabled={isNextDisabled() || isGenerating}
+              className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+            >
+              {currentStep === 4 ? (
+                "시간버스 타기"
+              ) : (
+                <>
+                  다음 <ChevronRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </Card>

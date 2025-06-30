@@ -192,13 +192,11 @@ export default function Home() {
   // 라벨 변환 함수들
   const getAgeLabel = (age: string) => {
     switch (age) {
-      case "2years": return "2살"
       case "5years": return "5살"
       case "teen": return "10대"
       case "20s": return "20대"
       case "30s": return "30대"
       case "40s": return "40대"
-      case "60s": return "60대"
       default: return age
     }
   }

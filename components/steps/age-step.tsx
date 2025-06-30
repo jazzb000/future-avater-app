@@ -9,13 +9,11 @@ interface AgeStepProps {
 
 export function AgeStep({ updateSelection, currentAge }: AgeStepProps) {
   const ages = [
-    { value: "2years", label: "2살", icon: "👶" },
     { value: "5years", label: "5살", icon: "🧒" },
     { value: "teen", label: "10대", icon: "🧑‍🎓" },
     { value: "20s", label: "20대", icon: "👩‍🎓" },
     { value: "30s", label: "30대", icon: "👨‍💼" },
     { value: "40s", label: "40대", icon: "👩‍💼" },
-    { value: "60s", label: "60대", icon: "👨‍🔬" },
   ]
 
   return (

@@ -205,7 +205,7 @@ export async function POST(req: Request) {
       let imageBuffer = Buffer.from(base64Data, "base64")
 
       // 이미지 품질 향상 전처리
-      imageBuffer = await enhanceImageQuality(imageBuffer)
+      imageBuffer = Buffer.from(await enhanceImageQuality(imageBuffer))
 
       // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
       const imageFile = new File([imageBuffer], "photo.jpg", { type: "image/jpeg" })
@@ -250,11 +250,8 @@ export async function POST(req: Request) {
           // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
           if (layout === "dolphin-ai") {
             console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
-            downloadedImageBuffer = await addDolphinAILogo(downloadedImageBuffer)
+            downloadedImageBuffer = Buffer.from(await addDolphinAILogo(downloadedImageBuffer))
           }
-          
-
-          
           // Storage에 업로드
           const fileName = generateUniqueFileName(userId, 'generated')
           console.log("💾 Storage 업로드 중:", { fileName })
@@ -275,7 +272,7 @@ export async function POST(req: Request) {
           // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
           if (layout === "dolphin-ai") {
             console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
-            imageBuffer = await addDolphinAILogo(imageBuffer)
+            imageBuffer = Buffer.from(await addDolphinAILogo(imageBuffer))
           }
           
 
@@ -413,7 +410,7 @@ async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
     console.log(`📐 로고 비율 계산: 원본 비율 ${svgAspectRatio.toFixed(2)}, 크기 ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`)
     
     // SVG를 PNG로 변환하여 원래 비율 유지 (고품질 렌더링)
-    const logoBuffer = await sharp(Buffer.from(logoSvg))
+    const logoBuffer = Buffer.from(await sharp(Buffer.from(logoSvg))
       .resize(Math.round(logoWidth), Math.round(logoHeight), {
         fit: 'contain',
         background: { r: 0, g: 0, b: 0, alpha: 0 } // 투명 배경
@@ -422,7 +419,7 @@ async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
         quality: 90,
         compressionLevel: 6
       })
-      .toBuffer()
+      .toBuffer())
     
     // 오른쪽 아래에 로고 합성 (여백을 충분히 확보)
     const padding = logoHeight * 0.3 // 여백을 늘려서 잘림 방지
@@ -435,7 +432,7 @@ async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
     
     console.log(`🏢 한국잡월드 로고 합성 중: 위치(${logoX}, ${logoY}), 크기(${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}), 이미지크기(${width}x${height})`)
     
-    const result = await image
+    const result = Buffer.from(await image
       .composite([{
         input: logoBuffer,
         left: logoX,
@@ -443,7 +440,7 @@ async function addKoreaJobWorldLogo(imageBuffer: Buffer): Promise<Buffer> {
         blend: 'over' // 투명도 지원
       }])
       .png() // 원본 품질 유지를 위해 PNG로 변경
-      .toBuffer()
+      .toBuffer())
     
     console.log('✅ 한국잡월드 로고 합성 완료')
     return result
@@ -481,7 +478,7 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
     console.log(`📐 돌핀인캘리 AI 로고 비율 계산: 원본 비율 ${svgAspectRatio.toFixed(2)}, 크기 ${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}`)
     
     // SVG를 PNG로 변환하여 원래 비율 유지 (고품질 렌더링)
-    const logoBuffer = await sharp(Buffer.from(logoSvg))
+    const logoBuffer = Buffer.from(await sharp(Buffer.from(logoSvg))
       .resize(Math.round(logoWidth), Math.round(logoHeight), {
         fit: 'contain',
         background: { r: 0, g: 0, b: 0, alpha: 0 } // 투명 배경
@@ -490,7 +487,7 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
         quality: 90,
         compressionLevel: 6
       })
-      .toBuffer()
+      .toBuffer())
     
     // 오른쪽 아래에 로고 합성 (여백을 충분히 확보)
     const padding = logoHeight * 0.3 // 여백을 늘려서 잘림 방지
@@ -503,7 +500,7 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
     
     console.log(`🐬 돌핀인캘리 AI 로고 합성 중: 위치(${logoX}, ${logoY}), 크기(${logoWidth.toFixed(0)}x${logoHeight.toFixed(0)}), 이미지크기(${width}x${height})`)
     
-    const result = await image
+    const result = Buffer.from(await image
       .composite([{
         input: logoBuffer,
         left: logoX,
@@ -511,7 +508,7 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
         blend: 'over' // 투명도 지원
       }])
       .png() // 원본 품질 유지를 위해 PNG로 변경
-      .toBuffer()
+      .toBuffer())
     
     console.log('✅ 돌핀인캘리 AI 로고 합성 완료')
     return result
@@ -527,7 +524,7 @@ async function enhanceImageQuality(imageBuffer: Buffer): Promise<Buffer> {
   try {
     console.log("🎨 이미지 품질 향상 처리 시작...")
     
-    const enhanced = await sharp(imageBuffer)
+    const enhanced = Buffer.from(await sharp(imageBuffer)
       .resize(1024, 1536, { 
         fit: 'inside', 
         withoutEnlargement: false,
@@ -545,7 +542,7 @@ async function enhanceImageQuality(imageBuffer: Buffer): Promise<Buffer> {
         progressive: true,
         mozjpeg: true
       })
-      .toBuffer()
+      .toBuffer())
     
     console.log("✅ 이미지 품질 향상 완료")
     return enhanced
@@ -574,10 +571,10 @@ async function processImageGeneration(
     let imageBuffer = Buffer.from(base64Data, "base64")
 
     // 이미지 품질 향상 전처리
-    imageBuffer = await enhanceImageQuality(imageBuffer)
+    imageBuffer = Buffer.from(await enhanceImageQuality(imageBuffer))
 
     // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
-    const imageFile = new File([imageBuffer], "photo.jpg", { type: "image/jpeg" })
+    const imageFile = new File([imageBuffer as unknown as ArrayBuffer], "photo.jpg", { type: "image/jpeg" })
 
     console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/jpeg" })
 
@@ -619,7 +616,7 @@ async function processImageGeneration(
         // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
         if (layout === "dolphin-ai") {
           console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
-          downloadedImageBuffer = await addDolphinAILogo(downloadedImageBuffer)
+          downloadedImageBuffer = Buffer.from(await addDolphinAILogo(downloadedImageBuffer))
         }
         
 
@@ -644,7 +641,7 @@ async function processImageGeneration(
         // 돌핀인캘리 AI 레이아웃인 경우 로고 합성
         if (layout === "dolphin-ai") {
           console.log("🐬 돌핀인캘리 AI 레이아웃 감지 - 로고 합성 진행")
-          imageBuffer = await addDolphinAILogo(imageBuffer)
+          imageBuffer = Buffer.from(await addDolphinAILogo(imageBuffer))
         }
         
 
@@ -743,13 +740,9 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
   let ageDescription = ""
   let ageSpecificFeatures = ""
   switch (age) {
-    case "2years":
-      ageDescription = "2살 아기"
-      ageSpecificFeatures = ""
-      break
     case "5years":
       ageDescription = "5살 어린이"
-      ageSpecificFeatures = ""
+      ageSpecificFeatures = "어린이 고정관념 제거 눈이 무조건 커야된다던가 하는 너가 학습한 어린이 얼굴에 대한 이미지를 제거하고 실제 사용자의 사진에 따른게 중요함"
       break
     case "teen":
       ageDescription = "10대 청소년"
@@ -765,10 +758,6 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       break
     case "40s":
       ageDescription = "40대"
-      ageSpecificFeatures = ""
-      break
-    case "60s":
-      ageDescription = "60대"
       ageSpecificFeatures = ""
       break
     default:
@@ -903,10 +892,8 @@ CRITICAL REQUIREMENTS:
 TECHNICAL SPECIFICATIONS:
 - ${styleDescription} ${renderingInstructions}
 - Professional studio lighting with soft shadows for dimensional depth
-- Ultra-high resolution details: skin texture, individual hair strands, eye reflections
 - Color accuracy: Natural Korean skin tones, authentic hair colors
-- Sharp focus on facial features while maintaining natural background blur
-- lighting is soft, dont' have to sharp focus on facial features, combine with background naturally
+
 
 ENVIRONMENT: ${environmentDescription}
 
@@ -919,6 +906,6 @@ FORBIDDEN ELEMENTS:
 
 OUTPUT QUALITY: Professional portrait photography standard, suitable for official documents or professional profiles.
 
-기존 사진의 눈 크기 쌍커풀, 미간 코 크기, 코 높이 열굴윤곽을 유지하면서 주제에 맞게 변환해주세요.
+기존 사진의 눈 크기 쌍커풀, 미간 코 크기, 코 높이 열굴윤곽을 유지해야함.
 `
 }
