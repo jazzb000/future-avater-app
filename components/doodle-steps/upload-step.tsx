@@ -295,9 +295,12 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
 
       canvas.width = canvasWidth
       canvas.height = canvasHeight
+
+      // 비디오 프레임을 캔버스에 그리기
       context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
 
-      const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      // 캔버스에서 이미지 데이터 추출 (PNG 형식으로 통일)
+      const imageData = canvas.toDataURL("image/png", 1.0)
 
       if (imageData && imageData !== "data:,") {
         setPreviewUrl(imageData)
@@ -348,8 +351,8 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (2048x2048)
-            const maxSize = 2048
+            // 최대 해상도 제한 (더 작게 설정하여 안정성 확보)
+            const maxSize = 800
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
@@ -372,8 +375,33 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
-            // PNG로 변환 (고품질) - 일관성 유지
+            // 이미지 그리기 성공 확인
+            try {
+              const imageData = ctx.getImageData(0, 0, width, height)
+              if (!imageData || imageData.data.length === 0) {
+                throw new Error("이미지 데이터를 가져올 수 없습니다.")
+              }
+            } catch (drawError) {
+              console.error("이미지 그리기 실패:", drawError)
+              setError("이미지 처리에 실패했습니다. 다른 이미지를 시도해주세요.")
+              return
+            }
+            
+            // PNG로 변환 (고품질)
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            
+            // 변환된 이미지 검증
+            if (!optimizedImage || optimizedImage === "data:,") {
+              setError("이미지 변환에 실패했습니다. 다시 시도해주세요.")
+              return
+            }
+            
+            console.log("✅ 이미지 변환 완료:", {
+              imageType: optimizedImage.split(";")[0],
+              imageLength: optimizedImage.length,
+              originalType: file.type
+            })
+            
             setPreviewUrl(optimizedImage)
             updateSelection("doodle", optimizedImage)
             setError(null)
@@ -407,6 +435,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
     const file = e.dataTransfer.files?.[0]
     if (file && file.type.startsWith("image/")) {
       // 드래그앤드롭에서도 같은 처리 로직 사용
+      // 파일 타입 검증
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
       if (!validTypes.includes(file.type)) {
         setError("JPG, JPEG, PNG, WebP 파일만 업로드 가능합니다.")
@@ -430,8 +459,8 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (2048x2048)
-            const maxSize = 2048
+            // 최대 해상도 제한 (더 작게 설정하여 안정성 확보)
+            const maxSize = 800
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
@@ -454,8 +483,33 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
-            // PNG로 변환 (고품질) - 일관성 유지
+            // 이미지 그리기 성공 확인
+            try {
+              const imageData = ctx.getImageData(0, 0, width, height)
+              if (!imageData || imageData.data.length === 0) {
+                throw new Error("이미지 데이터를 가져올 수 없습니다.")
+              }
+            } catch (drawError) {
+              console.error("이미지 그리기 실패:", drawError)
+              setError("이미지 처리에 실패했습니다. 다른 이미지를 시도해주세요.")
+              return
+            }
+            
+            // PNG로 변환 (고품질)
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            
+            // 변환된 이미지 검증
+            if (!optimizedImage || optimizedImage === "data:,") {
+              setError("이미지 변환에 실패했습니다. 다시 시도해주세요.")
+              return
+            }
+            
+            console.log("✅ 드래그앤드롭 이미지 변환 완료:", {
+              imageType: optimizedImage.split(";")[0],
+              imageLength: optimizedImage.length,
+              originalType: file.type
+            })
+            
             setPreviewUrl(optimizedImage)
             updateSelection("doodle", optimizedImage)
             setError(null)
