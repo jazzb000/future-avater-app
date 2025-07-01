@@ -62,13 +62,12 @@ export default function Home() {
     const scrollTop = window.scrollY
     const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면 (더 적극적)
 
-    // 메인 이미지와 원본 낙서를 함께 프리로딩 (효율적)
+    // 프리로딩 대상 이미지 선정
     const visibleImages = images
       .map((img, index) => ({ ...img, index }))
       .filter((img, arrayIndex) => {
         // 첫 20개는 즉시 프리로딩
         if (arrayIndex < 20) return true
-        
         // 나머지는 뷰포트 기준
         const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
         if (cardElement) {
@@ -76,7 +75,6 @@ export default function Home() {
           const absoluteTop = rect.top + scrollTop
           return absoluteTop <= preloadZoneEnd
         }
-        
         // DOM 요소가 없으면 인덱스 기반 추정
         const estimatedCardHeight = 400
         const row = Math.floor(arrayIndex / 3)
@@ -85,31 +83,14 @@ export default function Home() {
       })
       .slice(0, 20) // 최대 20개
 
-    // 모든 필요한 이미지를 한번에 프리로딩 (우선순위 최적화)
+    // 원본 낙서만 프리로딩
     visibleImages.forEach((image, index) => {
-      setTimeout(() => {
-        // 🚀 1. 현실화된 이미지 (낙서→AI 변환 결과) - 최우선
-        if (image.type === 'doodle' && image.result_image_url) {
-          preloadImageSmart(image.result_image_url)
-        }
-        
-        // 🚀 2. 시간버스 이미지 (AI 생성 아바타) - 우선
-        if (image.type === 'avatar' && image.image_url) {
-          preloadImageSmart(image.image_url)
-        }
-      }, index * 15) // 현실화된 이미지와 시간버스를 더 빠르게 로딩 (20ms → 15ms)
+      if (image.type === 'doodle' && image.original_image_url) {
+        setTimeout(() => {
+          preloadImageSmart(image.original_image_url)
+        }, index * 50) // 50ms 간격
+      }
     })
-    
-    // 📝 3. 원본 낙서는 나중에 별도로 프리로딩 (우선순위 낮음)
-    setTimeout(() => {
-      visibleImages.forEach((image, index) => {
-        if (image.type === 'doodle' && image.original_image_url) {
-          setTimeout(() => {
-            preloadImageSmart(image.original_image_url)
-          }, index * 50) // 원본 낙서는 더 느린 간격으로 (50ms)
-        }
-      })
-    }, 500) // 메인 이미지들이 모두 로딩된 후 0.5초 뒤에 시작
   }, [images, preloadImageSmart])
 
   // 중복 제거 헬퍼 함수
