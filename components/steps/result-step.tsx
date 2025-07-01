@@ -51,7 +51,7 @@ export function ResultStep({
     }
   }, [image])
 
-  // 이미지 로딩 에러 핸들러
+  // 이미지 로딩 에러 핸들러 (강화된 버전)
   const handleImageError = (error: any) => {
     const attemptCount = imageLoadAttempts + 1
     setImageLoadAttempts(attemptCount)
@@ -63,29 +63,42 @@ export function ResultStep({
       timestamp: new Date().toISOString()
     })
     
-    if (attemptCount < 3) { // 3번만 재시도
+    if (attemptCount < 5) { // 5번까지 재시도 (더 많은 기회)
       setTimeout(() => {
-        console.log(`🔄 이미지 로딩 재시도 (${attemptCount}/3)`)
+        console.log(`🔄 이미지 로딩 재시도 (${attemptCount}/5)`)
         setImageLoadError(null)
-        // 단순 재시도 - 캐시버스터 없이
+        
+        // 캐시버스터와 함께 재시도
         const imgElement = document.querySelector('img[alt="시간버스"]') as HTMLImageElement
         if (imgElement && generatedImage) {
-          imgElement.src = generatedImage
+          // URL에 타임스탬프 추가하여 캐시 방지
+          const cacheBuster = `?t=${Date.now()}&retry=${attemptCount}`
+          const imageUrl = generatedImage.includes('?') 
+            ? `${generatedImage}&t=${Date.now()}&retry=${attemptCount}`
+            : `${generatedImage}${cacheBuster}`
+          
+          imgElement.src = imageUrl
         }
-      }, 1000 * attemptCount) // 1초씩 증가
+      }, 2000 * attemptCount) // 2초씩 증가 (더 긴 대기시간)
     } else {
-      setImageLoadError("이미지를 로딩할 수 없습니다. 새로고침을 시도해주세요.")
+      setImageLoadError("이미지를 로딩할 수 없습니다. 페이지를 새로고침하거나 잠시 후 다시 시도해주세요.")
     }
   }
 
-  // 이미지 로딩 성공 핸들러
+  // 이미지 로딩 성공 핸들러 (강화된 버전)
   const handleImageLoad = () => {
     console.log("✅ 이미지 로딩 성공:", {
       imageUrl: generatedImage?.substring(0, 100) + "...",
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      attempts: imageLoadAttempts
     })
     setImageLoadError(null)
     setImageLoadAttempts(0)
+    
+    // 로딩 성공 시 부모 컴포넌트에 알림
+    if (setGeneratedImage && generatedImage) {
+      setGeneratedImage(generatedImage)
+    }
   }
 
   const handleDownload = () => {
@@ -259,7 +272,7 @@ export function ResultStep({
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="text-white text-center">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                          <p className="text-xs">재시도 중... ({imageLoadAttempts}/3)</p>
+                          <p className="text-xs">재시도 중... ({imageLoadAttempts}/5)</p>
                         </div>
                       </div>
                     )}

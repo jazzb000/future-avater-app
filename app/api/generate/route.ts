@@ -519,7 +519,7 @@ async function addDolphinAILogo(imageBuffer: Buffer): Promise<Buffer> {
   }
 }
 
-// 이미지 전처리 및 품질 향상 함수
+// 이미지 전처리 및 품질 향상 함수 (PNG로 통일)
 async function enhanceImageQuality(imageBuffer: Buffer): Promise<Buffer> {
   try {
     console.log("🎨 이미지 품질 향상 처리 시작...")
@@ -537,14 +537,14 @@ async function enhanceImageQuality(imageBuffer: Buffer): Promise<Buffer> {
         saturation: 1.05, // 약간의 채도 증가
         hue: 0
       })
-      .jpeg({ 
+      .png({ 
         quality: 95,
-        progressive: true,
-        mozjpeg: true
+        compressionLevel: 9,
+        progressive: true
       })
       .toBuffer())
     
-    console.log("✅ 이미지 품질 향상 완료")
+    console.log("✅ 이미지 품질 향상 완료 (PNG)")
     return enhanced
   } catch (error) {
     console.log("⚠️ 이미지 품질 향상 실패, 원본 사용:", error)
@@ -565,18 +565,33 @@ async function processImageGeneration(
   try {
     console.log("🤖 백그라운드 이미지 생성 시작:", { jobId })
 
-    // Base64 데이터 URL에서 이미지 데이터 추출
+    // Base64 데이터 URL에서 이미지 데이터 추출 (안전한 처리)
     console.log("🖼️ 이미지 데이터 처리 중...")
+    
+    // Base64 데이터 검증
+    if (!photo || !photo.includes(",")) {
+      throw new Error("잘못된 이미지 데이터 형식입니다.")
+    }
+    
     const base64Data = photo.split(",")[1]
+    if (!base64Data) {
+      throw new Error("이미지 데이터를 추출할 수 없습니다.")
+    }
+    
     let imageBuffer = Buffer.from(base64Data, "base64")
+    
+    // 버퍼 크기 검증
+    if (imageBuffer.length === 0) {
+      throw new Error("이미지 데이터가 비어있습니다.")
+    }
 
-    // 이미지 품질 향상 전처리
+    // 이미지 품질 향상 전처리 (PNG로 통일)
     imageBuffer = Buffer.from(await enhanceImageQuality(imageBuffer))
 
-    // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
-    const imageFile = new File([imageBuffer as unknown as ArrayBuffer], "photo.jpg", { type: "image/jpeg" })
+    // Buffer를 File 객체로 변환 (OpenAI SDK 호환) - PNG로 통일
+    const imageFile = new File([imageBuffer as unknown as ArrayBuffer], "photo.png", { type: "image/png" })
 
-    console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/jpeg" })
+    console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/png" })
 
     // OpenAI API를 사용하여 이미지 생성
     console.log("🤖 OpenAI API 호출 시작...")

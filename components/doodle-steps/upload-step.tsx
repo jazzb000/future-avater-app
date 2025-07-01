@@ -372,7 +372,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
-            // PNG로 변환 (고품질)
+            // PNG로 변환 (고품질) - 일관성 유지
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
             setPreviewUrl(optimizedImage)
             updateSelection("doodle", optimizedImage)
@@ -454,7 +454,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
-            // PNG로 변환 (고품질)
+            // PNG로 변환 (고품질) - 일관성 유지
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
             setPreviewUrl(optimizedImage)
             updateSelection("doodle", optimizedImage)
