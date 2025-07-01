@@ -720,14 +720,12 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         </div>
       ) : (
         <Tabs defaultValue="upload" value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-2 mb-4 bg-purple-100">
-            {!isMobile() && (
+          {!isMobile() && (
+            <TabsList className="grid grid-cols-2 mb-4 bg-purple-100">
               <TabsTrigger value="upload" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
                 <Upload className="mr-2 h-4 w-4" />
                 업로드
               </TabsTrigger>
-            )}
-            {!isMobile() && (
               <TabsTrigger
                 value="camera"
                 className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
@@ -740,8 +738,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                 <Camera className="mr-2 h-4 w-4" />
                 사진 찍기
               </TabsTrigger>
-            )}
-          </TabsList>
+            </TabsList>
+          )}
 
           <TabsContent value="upload">
             <div
