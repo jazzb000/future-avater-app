@@ -187,12 +187,21 @@ export function Wizard() {
           userId: user.id,
         }
 
+        // 요청 데이터 검증
+        const requestString = JSON.stringify(requestBody)
+        console.log("📤 요청 데이터 검증:", {
+          requestLength: requestString.length,
+          requestStart: requestString.substring(0, 200),
+          photoStart: selections.photo?.substring(0, 100),
+          photoType: selections.photo?.split(";")[0]
+        })
+
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(requestBody),
+          body: requestString,
           signal: controller.signal, // 타임아웃 신호 추가
         })
 

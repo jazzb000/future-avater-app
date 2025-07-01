@@ -534,16 +534,45 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
+            // 이미지 그리기 성공 확인
+            try {
+              const imageData = ctx.getImageData(0, 0, width, height)
+              if (!imageData || imageData.data.length === 0) {
+                throw new Error("이미지 데이터를 가져올 수 없습니다.")
+              }
+            } catch (drawError) {
+              console.error("이미지 그리기 실패:", drawError)
+              setError("이미지 처리에 실패했습니다. 다른 이미지를 시도해주세요.")
+              return
+            }
+            
             // PNG로 변환 (고품질) - 일관성 유지
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            
+            // 변환된 이미지 검증
+            if (!optimizedImage || optimizedImage === "data:,") {
+              setError("이미지 변환에 실패했습니다. 다시 시도해주세요.")
+              return
+            }
+            
+            console.log("✅ 이미지 변환 완료:", {
+              imageType: optimizedImage.split(";")[0],
+              imageLength: optimizedImage.length,
+              originalType: file.type
+            })
+            
             setPreviewUrl(optimizedImage)
             updateSelection("photo", optimizedImage)
             setError(null)
           }
         }
-        img.onerror = () => {
-          setError("이미지 파일을 읽을 수 없습니다.")
+        img.onerror = (error) => {
+          console.error("이미지 로드 실패:", error)
+          setError("이미지 파일을 읽을 수 없습니다. 다른 이미지를 시도해주세요.")
         }
+        
+        // CORS 문제 방지를 위한 설정
+        img.crossOrigin = "anonymous"
         img.src = result
       }
       reader.onerror = () => {
@@ -617,8 +646,33 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
             // 이미지 그리기
             ctx.drawImage(img, 0, 0, width, height)
             
+            // 이미지 그리기 성공 확인
+            try {
+              const imageData = ctx.getImageData(0, 0, width, height)
+              if (!imageData || imageData.data.length === 0) {
+                throw new Error("이미지 데이터를 가져올 수 없습니다.")
+              }
+            } catch (drawError) {
+              console.error("드래그앤드롭 이미지 그리기 실패:", drawError)
+              setError("이미지 처리에 실패했습니다. 다른 이미지를 시도해주세요.")
+              return
+            }
+            
             // PNG로 변환 (고품질) - 일관성 유지
             const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            
+            // 변환된 이미지 검증
+            if (!optimizedImage || optimizedImage === "data:,") {
+              setError("이미지 변환에 실패했습니다. 다시 시도해주세요.")
+              return
+            }
+            
+            console.log("✅ 드래그앤드롭 이미지 변환 완료:", {
+              imageType: optimizedImage.split(";")[0],
+              imageLength: optimizedImage.length,
+              originalType: file.type
+            })
+            
             setPreviewUrl(optimizedImage)
             updateSelection("photo", optimizedImage)
             setError(null)

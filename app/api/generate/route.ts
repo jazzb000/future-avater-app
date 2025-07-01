@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     try {
       const requestText = await req.text()
       console.log("📝 요청 데이터 길이:", requestText.length)
+      console.log("📝 요청 데이터 시작 부분:", requestText.substring(0, 200))
       
       // 요청 데이터가 너무 큰 경우 체크
       if (requestText.length > 50 * 1024 * 1024) { // 50MB 제한
@@ -62,13 +63,39 @@ export async function POST(req: Request) {
         )
       }
       
-      requestData = JSON.parse(requestText)
-    } catch (parseError) {
-      console.error("❌ JSON 파싱 오류:", parseError)
+      // 요청 데이터가 비어있는지 확인
+      if (!requestText || requestText.trim().length === 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "요청 데이터가 비어있습니다.",
+          },
+          { status: 400 }
+        )
+      }
+      
+      // JSON 파싱 시도
+      try {
+        requestData = JSON.parse(requestText)
+      } catch (jsonError) {
+        console.error("❌ JSON 파싱 실패:", {
+          error: jsonError,
+          requestStart: requestText.substring(0, 100),
+          requestLength: requestText.length
+        })
+        throw jsonError
+      }
+    } catch (parseError: any) {
+      console.error("❌ 요청 처리 오류:", {
+        error: parseError,
+        message: parseError?.message || "알 수 없는 오류",
+        name: parseError?.name || "UnknownError"
+      })
       return NextResponse.json(
         {
           success: false,
           error: "잘못된 요청 형식입니다. 이미지 데이터를 다시 확인해주세요.",
+          details: parseError?.message || "알 수 없는 오류"
         },
         { status: 400 }
       )
