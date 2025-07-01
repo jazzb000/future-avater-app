@@ -133,34 +133,32 @@ export function ResultStep({
     }
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (generatedImage) {
-      // Base64 이미지인 경우 직접 다운로드
-      if (generatedImage.startsWith("data:")) {
-        const link = document.createElement("a")
-        link.href = generatedImage
-        link.download = "낙서-현실화.png"
+      try {
+        // URL에서 이미지 가져오기
+        const response = await fetch(generatedImage)
+        const blob = await response.blob()
+        
+        // Blob URL 생성
+        const blobUrl = window.URL.createObjectURL(blob)
+        
+        // 다운로드 링크 생성
+        const link = document.createElement('a')
+        link.href = blobUrl
+        link.download = "낙서-현실화.png" // 파일 이름 지정
+        link.style.display = 'none'
         document.body.appendChild(link)
+        
+        // 클릭 이벤트 발생
         link.click()
+        
+        // 정리
         document.body.removeChild(link)
-      } else {
-        // URL 이미지인 경우 fetch를 통해 다운로드
-        fetch(generatedImage)
-          .then((response) => response.blob())
-          .then((blob) => {
-            const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-            link.href = url
-      link.download = "낙서-현실화.png"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-            window.URL.revokeObjectURL(url)
-          })
-          .catch((error) => {
-            console.error("이미지 다운로드 중 오류:", error)
-            alert("이미지 다운로드에 실패했습니다.")
-          })
+        window.URL.revokeObjectURL(blobUrl)
+      } catch (error) {
+        console.error("이미지 다운로드 중 오류:", error)
+        alert("이미지 다운로드에 실패했습니다.")
       }
     }
   }
