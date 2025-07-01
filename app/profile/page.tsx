@@ -17,6 +17,7 @@ import { User, ImageIcon, Eye, EyeOff, Loader2, Sparkles, Pencil, QrCode, Downlo
 import { Switch } from "@/components/ui/switch"
 import { QRCodeSVG } from "qrcode.react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 
 type Profile = {
   username: string
@@ -60,6 +61,7 @@ export default function ProfilePage() {
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null)
   const [visibleImageCount, setVisibleImageCount] = useState(6)
   const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!user) {
@@ -246,6 +248,21 @@ export default function ProfilePage() {
   const handleImageClick = (image: UserImage) => {
     setSelectedImage(image)
     setModalOpen(true)
+
+    // 시간버스(미래의 나) 디폴트 이미지(생성 실패) 안내
+    if (
+      image.type === "future" &&
+      (
+        ("status" in image && image.status === "timeout") ||
+        image.image_url === "https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1374&auto=format&fit=crop"
+      )
+    ) {
+      toast({
+        title: "이미지 생성 실패",
+        description: "이미지 생성이 5분을 초과해 실패했습니다. 티켓이 환불되었습니다.",
+        variant: "destructive",
+      })
+    }
   }
 
   // 모달 닫기
