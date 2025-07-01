@@ -842,15 +842,15 @@ function generatePrompt(age: string, gender: string, job: string, style: string,
       break
     case "20s":
       ageDescription = "20대"
-      ageSpecificFeatures = ""
+      ageSpecificFeatures = "이러한 특성을 반영해서 제작해주되 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 이쁘게 만들어줘"
       break
     case "30s":
       ageDescription = "30대"
-      ageSpecificFeatures = ""
+      ageSpecificFeatures = "이러한 특성을 반영해서 제작해주되 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 이쁘게 만들어줘"
       break
     case "40s":
       ageDescription = "40대"
-      ageSpecificFeatures = ""
+      ageSpecificFeatures = "이러한 특성을 반영해서 제작해주되 얼굴은 본 얼굴에서 나올수있는 최대한의 이쁜부분을 사용해서 이쁘게 만들어줘"
       break
     default:
       ageDescription = "적절한 연령대"
@@ -998,6 +998,6 @@ FORBIDDEN ELEMENTS:
 
 OUTPUT QUALITY: Professional portrait photography standard, suitable for official documents or professional profiles.
 
-기존 사진의 눈 크기 쌍커풀, 미간 코 크기, 코 높이 열굴윤곽을 유지해야함.
+기존 사진의 눈 크기 쌍커풀, 미간 코 크기, 코 높이 열굴윤곽을 유지해야함.이사람의 고유한 얼굴특성은 변화하면 안돼 
 `
 }
