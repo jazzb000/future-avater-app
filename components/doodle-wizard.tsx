@@ -108,11 +108,33 @@ export function DoodleWizard() {
       setGeneratedImageId(null)
 
       try {
+        // 이미지 데이터 검증 및 전처리
+        if (!selections.doodle) {
+          throw new Error("낙서가 선택되지 않았습니다.")
+        }
+
+        // Base64 데이터 검증
+        if (!selections.doodle.startsWith("data:image/")) {
+          throw new Error("잘못된 이미지 형식입니다.")
+        }
+
+        // 이미지 크기 검증 (10MB 제한)
+        const base64Data = selections.doodle.split(",")[1]
+        if (base64Data) {
+          const sizeInBytes = Math.ceil((base64Data.length * 3) / 4)
+          const sizeInMB = sizeInBytes / (1024 * 1024)
+          
+          if (sizeInMB > 10) {
+            throw new Error("이미지 크기가 10MB를 초과합니다. 더 작은 이미지를 사용해주세요.")
+          }
+        }
+
         console.log("🚀 API 요청 시작 (낙서현실화):", {
           timestamp: new Date().toISOString(),
           userId: user.id.substring(0, 8) + "...",
           hasDoodle: !!selections.doodle,
           doodleType: selections.doodle?.startsWith("data:") ? "base64" : "url",
+          doodleSize: base64Data ? `${(base64Data.length * 3 / 4 / 1024 / 1024).toFixed(2)}MB` : "unknown",
           style: selections.style
         })
 
@@ -120,16 +142,18 @@ export function DoodleWizard() {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 300000) // 5분 타임아웃
 
+        const requestBody = {
+          doodle: selections.doodle,
+          style: selections.style,
+          userId: user.id,
+        }
+
         const response = await fetch("/api/doodle-to-reality", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            doodle: selections.doodle,
-            style: selections.style,
-            userId: user.id,
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal, // 타임아웃 신호 추가
         })
 

@@ -44,7 +44,37 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   try {
     console.log("🚀 미래의 나 API 호출 시작")
-    const { photo, age, gender, job, style, layout, userId } = await req.json()
+    
+    // JSON 파싱 에러 핸들링 강화
+    let requestData
+    try {
+      const requestText = await req.text()
+      console.log("📝 요청 데이터 길이:", requestText.length)
+      
+      // 요청 데이터가 너무 큰 경우 체크
+      if (requestText.length > 50 * 1024 * 1024) { // 50MB 제한
+        return NextResponse.json(
+          {
+            success: false,
+            error: "이미지 파일이 너무 큽니다. 10MB 이하의 파일을 사용해주세요.",
+          },
+          { status: 413 }
+        )
+      }
+      
+      requestData = JSON.parse(requestText)
+    } catch (parseError) {
+      console.error("❌ JSON 파싱 오류:", parseError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "잘못된 요청 형식입니다. 이미지 데이터를 다시 확인해주세요.",
+        },
+        { status: 400 }
+      )
+    }
+    
+    const { photo, age, gender, job, style, layout, userId } = requestData
 
     if (!photo || !age || !gender || !job || !style || !layout || !userId) {
       console.log("❌ 필수 항목 누락:", { 
@@ -199,18 +229,33 @@ export async function POST(req: Request) {
     console.log("✅ 작업 레코드 생성 완료:", { jobId })
 
     try {
-      // Base64 데이터 URL에서 이미지 데이터 추출
+      // Base64 데이터 URL에서 이미지 데이터 추출 (안전한 처리)
       console.log("🖼️ 이미지 데이터 처리 중...")
+      
+      // Base64 데이터 검증
+      if (!photo || !photo.includes(",")) {
+        throw new Error("잘못된 이미지 데이터 형식입니다.")
+      }
+      
       const base64Data = photo.split(",")[1]
+      if (!base64Data) {
+        throw new Error("이미지 데이터를 추출할 수 없습니다.")
+      }
+      
       let imageBuffer = Buffer.from(base64Data, "base64")
+      
+      // 버퍼 크기 검증
+      if (imageBuffer.length === 0) {
+        throw new Error("이미지 데이터가 비어있습니다.")
+      }
 
-      // 이미지 품질 향상 전처리
+      // 이미지 품질 향상 전처리 (PNG로 통일)
       imageBuffer = Buffer.from(await enhanceImageQuality(imageBuffer))
 
-      // Buffer를 File 객체로 변환 (OpenAI SDK 호환)
-      const imageFile = new File([imageBuffer], "photo.jpg", { type: "image/jpeg" })
+      // Buffer를 File 객체로 변환 (OpenAI SDK 호환) - PNG로 통일
+      const imageFile = new File([imageBuffer as unknown as ArrayBuffer], "photo.png", { type: "image/png" })
 
-      console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/jpeg" })
+      console.log("✅ 이미지 파일 생성 완료:", { size: imageBuffer.length, type: "image/png" })
 
       // OpenAI API를 사용하여 이미지 생성
       console.log("🤖 OpenAI API 호출 시작...")

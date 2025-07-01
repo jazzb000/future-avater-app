@@ -144,31 +144,55 @@ export function Wizard() {
       setError(null)
 
       try {
+        // 이미지 데이터 검증 및 전처리
+        if (!selections.photo) {
+          throw new Error("이미지가 선택되지 않았습니다.")
+        }
+
+        // Base64 데이터 검증
+        if (!selections.photo.startsWith("data:image/")) {
+          throw new Error("잘못된 이미지 형식입니다.")
+        }
+
+        // 이미지 크기 검증 (10MB 제한)
+        const base64Data = selections.photo.split(",")[1]
+        if (base64Data) {
+          const sizeInBytes = Math.ceil((base64Data.length * 3) / 4)
+          const sizeInMB = sizeInBytes / (1024 * 1024)
+          
+          if (sizeInMB > 10) {
+            throw new Error("이미지 크기가 10MB를 초과합니다. 더 작은 이미지를 사용해주세요.")
+          }
+        }
+
         console.log("🚀 API 요청 시작 (시간버스):", {
           timestamp: new Date().toISOString(),
           userId: user.id.substring(0, 8) + "...",
           hasPhoto: !!selections.photo,
-          photoType: selections.photo?.startsWith("data:") ? "base64" : "url"
+          photoType: selections.photo?.startsWith("data:") ? "base64" : "url",
+          photoSize: base64Data ? `${(base64Data.length * 3 / 4 / 1024 / 1024).toFixed(2)}MB` : "unknown"
         })
 
         // 타임아웃 설정 (5분)
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 300000) // 5분 타임아웃
 
+        const requestBody = {
+          photo: selections.photo,
+          age: selections.age,
+          gender: selections.gender,
+          job: selections.job,
+          style: selections.style,
+          layout: selections.layout,
+          userId: user.id,
+        }
+
         const response = await fetch("/api/generate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            photo: selections.photo,
-            age: selections.age,
-            gender: selections.gender,
-            job: selections.job,
-            style: selections.style,
-            layout: selections.layout,
-            userId: user.id,
-          }),
+          body: JSON.stringify(requestBody),
           signal: controller.signal, // 타임아웃 신호 추가
         })
 
