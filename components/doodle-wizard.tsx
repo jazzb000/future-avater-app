@@ -329,19 +329,21 @@ export function DoodleWizard() {
             <ChevronLeft className="mr-2 h-4 w-4" /> 이전
           </Button>
 
-          <Button
-            onClick={currentStep === steps.length - 2 ? handleGenerate : handleNext}
-            disabled={isNextDisabled() || isGenerating}
-            className="rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white"
-          >
-            {currentStep === steps.length - 2 ? (
-              "낙서 현실화하기"
-            ) : (
-              <>
-                다음 <ChevronRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
+          {currentStep < steps.length - 1 && (
+            <Button
+              onClick={currentStep === steps.length - 2 ? handleGenerate : handleNext}
+              disabled={isNextDisabled() || isGenerating}
+              className="rounded-full bg-gradient-to-r from-teal-500 to-green-500 hover:from-teal-600 hover:to-green-600 text-white"
+            >
+              {currentStep === steps.length - 2 ? (
+                "낙서 현실화하기"
+              ) : (
+                <>
+                  다음 <ChevronRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </Card>
