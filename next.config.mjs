@@ -7,10 +7,13 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    // 모바일 카메라 호환성을 위해 unoptimized 설정
-    unoptimized: true,
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    // 이미지 최적화 활성화 (성능 향상)
+    unoptimized: false,
+    // 갤러리 최적화를 위한 device sizes
+    deviceSizes: [480, 640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // 포맷 최적화
+    formats: ['image/webp', 'image/avif'],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
@@ -19,14 +22,28 @@ const nextConfig = {
         hostname: '**',
       },
       {
-        protocol: 'http',
+        protocol: 'http', 
         hostname: '**',
       }
     ],
+    // 캐시 최적화
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 7일
   },
-  // SSR 시 window 객체 접근 오류 방지
+  // 성능 최적화 설정
   experimental: {
     esmExternals: false,
+    optimizeCss: true, // CSS 최적화
+    optimizeServerReact: true, // React 서버 최적화
+  },
+  // 압축 설정
+  compress: true,
+  // 정적 에셋 최적화
+  swcMinify: true,
+  // 트리 쉐이킹 최적화
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{member}}',
+    },
   },
 }
 

@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js"
 
 // 동적 렌더링 강제 (빌드 시 정적 생성 방지)
 export const dynamic = 'force-dynamic'
+// API 응답 캐싱 설정 (30초간 캐시)
+export const revalidate = 30
 
 // Supabase 클라이언트 초기화 (Service Role Key 사용하여 RLS 우회)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL!
@@ -29,7 +31,7 @@ export async function GET(req: Request) {
     // 쿼리 파라미터 파싱
     const url = new URL(req.url)
     const page = Number.parseInt(url.searchParams.get("page") || "1")
-    const limit = Number.parseInt(url.searchParams.get("limit") || "12")
+    const limit = Math.min(Number.parseInt(url.searchParams.get("limit") || "16"), 50) // 최대 50개로 제한
     const filter = url.searchParams.get("filter") || "latest"
     const job = url.searchParams.get("job")
     const style = url.searchParams.get("style")
@@ -168,7 +170,8 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({
+    // 응답 헤더에 캐시 설정 추가
+    const response = NextResponse.json({
       success: true,
       images: processedData,
       total: count || 0,
@@ -176,6 +179,11 @@ export async function GET(req: Request) {
       limit,
       hasMore: count ? from + limit < count : false,
     })
+    
+    // 브라우저 캐시 헤더 설정 (30초)
+    response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60')
+    
+    return response
   } catch (error) {
     console.error("갤러리를 가져오는 중 오류가 발생했습니다:", error)
     return NextResponse.json(

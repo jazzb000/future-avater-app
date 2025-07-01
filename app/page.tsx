@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useDeferredValue, useTransition } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -29,6 +29,9 @@ export default function Home() {
   const [images, setImages] = useState<GalleryImage[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const deferredImages = useDeferredValue(images)
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set())
   const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [avatarPage, setAvatarPage] = useState(1)
@@ -56,11 +59,11 @@ export default function Home() {
     img.src = nextImageUrl
   }, [preloadedImages])
 
-  // 확장된 프리로딩: 보이는 영역 + 메인 이미지들
+  // 스마트 프리로딩: 사용자 패턴 기반 최적화
   const preloadVisibleAreaImages = useCallback(() => {
     const viewportHeight = window.innerHeight
     const scrollTop = window.scrollY
-    const preloadZoneEnd = scrollTop + viewportHeight * 2.0 // 현재 화면 + 아래 1화면 (더 확장)
+    const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면 (더 적극적)
 
     // 1. 낙서 원본 이미지 프리로딩 (기존)
     const visibleDoodleImages = images
@@ -82,13 +85,13 @@ export default function Home() {
         const cardTop = row * estimatedCardHeight + 300
         return cardTop <= preloadZoneEnd
       })
-      .slice(0, 8) // 더 많이 프리로딩
+      .slice(0, 12) // 더 많이 프리로딩
 
     // 2. 메인 갤러리 이미지도 적극적으로 프리로딩 (새로 추가)
     const visibleMainImages = images
       .filter((img, index) => {
-        // 첫 16개는 즉시 프리로딩
-        if (index < 16) return true
+        // 첫 20개는 즉시 프리로딩
+        if (index < 20) return true
         
         // 나머지는 뷰포트 기준
         const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
@@ -98,25 +101,25 @@ export default function Home() {
           return absoluteTop <= preloadZoneEnd
         }
         return false
-      })
-      .slice(0, 16) // 최대 16개
+              })
+      .slice(0, 20) // 최대 20개
 
-    // 낙서 원본 프리로딩
+    // 낙서 원본 프리로딩 (더 빠르게)
     visibleDoodleImages.forEach((image, index) => {
       if (image.original_image_url) {
         setTimeout(() => {
           preloadImageSmart(image.original_image_url!)
-        }, index * 50) // 더 빠른 간격
+        }, index * 30) // 더 빠른 간격 (50ms → 30ms)
       }
     })
 
     // 메인 이미지 프리로딩 (빌드환경에서도 빠른 로딩)
     visibleMainImages.forEach((image, index) => {
       const mainImageUrl = image.type === 'doodle' ? image.result_image_url : image.image_url
-      if (mainImageUrl && index >= 8) { // 첫 8개는 이미 priority 처리됨
+      if (mainImageUrl && index >= 6) { // 첫 6개는 이미 priority 처리됨
         setTimeout(() => {
           preloadImageSmart(mainImageUrl)
-        }, (index - 8) * 50 + 200) // 낙서 원본 이후에 시작
+        }, (index - 6) * 30 + 100) // 낙서 원본 이후에 시작 (더 빠르게)
       }
     })
   }, [images, preloadImageSmart])
@@ -127,7 +130,7 @@ export default function Home() {
     return newImages.filter(img => !existingIds.has(`${img.type}-${img.id}`))
   }, [])
 
-  // 두 가지 타입의 이미지를 모두 가져오기
+  // 두 가지 타입의 이미지를 모두 가져오기 (성능 최적화)
   const fetchImages = useCallback(async (reset: boolean = false) => {
     try {
       if (reset) {
@@ -138,18 +141,28 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 각 타입별로 페이지당 8개씩 가져오기 (더 빠른 초기 로딩을 위해 증가)
-      const limit = 8
+      // 초기 로딩 시 더 많이, 이후에는 적게 가져오기 (체감 속도 향상)
+      const limit = reset ? 12 : 8
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
-      // 시간버스 이미지 가져오기
-      const avatarResponse = await fetch(`/api/gallery?type=avatar&limit=${limit}&page=${currentAvatarPage}&filter=latest`)
-      const avatarData = await avatarResponse.json()
+      // 병렬로 두 API 호출하여 속도 향상
+      const [avatarResponse, doodleResponse] = await Promise.all([
+        fetch(`/api/gallery?type=avatar&limit=${limit}&page=${currentAvatarPage}&filter=latest`, {
+          // 브라우저 캐시 활용
+          cache: 'force-cache',
+          next: { revalidate: 30 }
+        }),
+        fetch(`/api/gallery?type=doodle&limit=${limit}&page=${currentDoodlePage}&filter=latest`, {
+          cache: 'force-cache', 
+          next: { revalidate: 30 }
+        })
+      ])
       
-      // 낙서현실화 이미지 가져오기  
-      const doodleResponse = await fetch(`/api/gallery?type=doodle&limit=${limit}&page=${currentDoodlePage}&filter=latest`)
-      const doodleData = await doodleResponse.json()
+      const [avatarData, doodleData] = await Promise.all([
+        avatarResponse.json(),
+        doodleResponse.json()
+      ])
 
       // 두 데이터를 합치고 타입 구분하여 섞기
       const avatarImages = avatarData.success ? avatarData.images.map((img: any) => ({ ...img, type: 'avatar' })) : []
@@ -160,12 +173,16 @@ export default function Home() {
         .sort(() => Math.random() - 0.5)
 
       if (reset) {
-        setImages(newImages)
+        startTransition(() => {
+          setImages(newImages)
+        })
       } else {
-        // 중복 제거 후 추가
-        setImages(prev => {
-          const uniqueNewImages = removeDuplicates(newImages, prev)
-          return [...prev, ...uniqueNewImages]
+        // 중복 제거 후 추가 - 논블로킹으로 처리
+        startTransition(() => {
+          setImages(prev => {
+            const uniqueNewImages = removeDuplicates(newImages, prev)
+            return [...prev, ...uniqueNewImages]
+          })
         })
       }
 
@@ -518,7 +535,7 @@ export default function Home() {
             className="flex w-auto -ml-2 md:-ml-3"
             columnClassName="pl-2 md:pl-3 bg-clip-padding"
           >
-            {Array.from({ length: 16 }).map((_, i) => {
+            {Array.from({ length: 18 }).map((_, i) => {
               // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
               const aspectRatios = [
                 'aspect-[3/4]',   // 세로형 (기본)
@@ -536,22 +553,29 @@ export default function Home() {
               ]
               const randomAspect = aspectRatios[i]
               
-                                return (
+                                                  return (
                     <div key={`initial-shimmer-${i}`} className="mb-3 md:mb-4">
-                  <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
-                    <div className="relative overflow-hidden">
-                      <div className={`w-full ${randomAspect} bg-gray-200 animate-shimmer`} />
-                      
-                      {/* 배지 시뮬레이션 */}
-                      <div className="absolute top-3 left-3 h-6 w-20 bg-gray-300 rounded-full animate-shimmer" style={{animationDelay: `${i * 0.1}s`}} />
-                      
-                      {/* 하단 정보 시뮬레이션 */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <div className="h-4 bg-gray-300 rounded w-3/4 animate-shimmer" style={{animationDelay: `${i * 0.15}s`}} />
-                      </div>
+                      <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/90 backdrop-blur-sm">
+                        <div className="relative overflow-hidden">
+                          <div className={`w-full ${randomAspect} bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-pulse`} 
+                               style={{
+                                 background: `linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)`,
+                                 backgroundSize: '200% 100%',
+                                 animation: `shimmer 1.5s infinite linear`
+                               }} />
+                          
+                          {/* 배지 시뮬레이션 - 더 현실적으로 */}
+                          <div className="absolute top-3 left-3 h-6 w-20 bg-gradient-to-r from-purple-200 to-teal-200 rounded-full animate-pulse" 
+                               style={{animationDelay: `${i * 0.05}s`}} />
+                          
+                          {/* 하단 정보 시뮬레이션 */}
+                          <div className="absolute bottom-0 left-0 right-0 p-4">
+                            <div className="h-4 bg-gradient-to-r from-gray-300 to-gray-200 rounded w-3/4 animate-pulse" 
+                                 style={{animationDelay: `${i * 0.08}s`}} />
+                          </div>
+                        </div>
+                      </Card>
                     </div>
-                  </Card>
-                </div>
               )
             })}
           </Masonry>
@@ -568,14 +592,18 @@ export default function Home() {
                className="flex w-auto -ml-2 md:-ml-3"
                columnClassName="pl-2 md:pl-3 bg-clip-padding"
              >
-               {images.map((image) => {
+               {deferredImages.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
                  
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="mb-3 md:mb-4 opacity-0 transform translate-y-4 transition-all duration-200 ease-out"
+                     className="mb-3 md:mb-4 opacity-0 transform translate-y-2 transition-all duration-300 ease-out"
                      id={`card-${image.type}-${image.id}`}
+                     style={{
+                       animationDelay: `${images.indexOf(image) * 50}ms`,
+                       animationFillMode: 'forwards'
+                     }}
                    >
                      <Card 
                        className="group overflow-hidden border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-200 cursor-pointer bg-white/80 backdrop-blur-sm"
@@ -588,26 +616,32 @@ export default function Home() {
                            width={400}
                            height={600}
                            className="w-full h-auto object-contain transition-transform duration-200"
-                           loading={images.indexOf(image) < 4 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 4}
-                           quality={85}
-                           fetchPriority={images.indexOf(image) < 4 ? "high" : "auto"}
+                           loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < 6}
+                           quality={80}
+                           fetchPriority={images.indexOf(image) < 6 ? "high" : "low"}
                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                           placeholder="blur"
+                           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                            onLoad={() => {
-                             // 이미지 로드 완료 후 카드 전체를 빠르게 표시
+                             // 이미지 로드 완료 후 부드러운 애니메이션으로 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
                                cardElement.classList.add('fade-in-up');
-                               cardElement.style.opacity = '1';
-                               cardElement.style.transform = 'translateY(0)';
+                               requestAnimationFrame(() => {
+                                 cardElement.style.opacity = '1';
+                                 cardElement.style.transform = 'translateY(0)';
+                               });
                              }
                            }}
                            onError={() => {
-                             // 이미지 로드 실패시에도 카드 표시
+                             // 이미지 로드 실패시에도 부드럽게 표시
                              const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
                              if (cardElement) {
-                               cardElement.style.opacity = '1';
-                               cardElement.style.transform = 'translateY(0)';
+                               requestAnimationFrame(() => {
+                                 cardElement.style.opacity = '1';
+                                 cardElement.style.transform = 'translateY(0)';
+                               });
                              }
                            }}
                          />

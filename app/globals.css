@@ -82,21 +82,34 @@ body {
     border-color: #e5e7eb;
   }
   
-  /* 스켈레톤 shimmer 애니메이션 (빠른 버전) */
+  /* 최적화된 shimmer 애니메이션 */
   @keyframes shimmer {
     0% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.4;
+      background-position: 200% 0;
     }
     100% {
-      opacity: 1;
+      background-position: -200% 0;
     }
   }
   
   .animate-shimmer {
-    animation: shimmer 1.5s infinite ease-in-out;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite linear;
+  }
+  
+  /* 빠른 펄스 애니메이션 */
+  @keyframes fastPulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+  }
+  
+  .animate-fast-pulse {
+    animation: fastPulse 1s infinite ease-in-out;
   }
   
   /* 이미지 로딩 애니메이션 최적화 */
