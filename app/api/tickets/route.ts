@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase"
-import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 
 // Supabase 클라이언트 초기화 (쿠키 사용)
 const getSupabaseClient = () => {
-  const cookieStore = cookies()
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
-      },
-    },
-  })
+  return createClient(supabaseUrl, supabaseAnonKey)
 }
 
 export async function GET(req: Request) {

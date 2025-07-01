@@ -9,11 +9,12 @@ const nextConfig = {
   images: {
     // 이미지 최적화 활성화 (성능 향상)
     unoptimized: false,
-    // 갤러리 최적화를 위한 device sizes
-    deviceSizes: [480, 640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    // 포맷 최적화
-    formats: ['image/webp', 'image/avif'],
+    // 모바일 우선 최적화를 위한 device sizes (더 작은 크기 우선)
+    deviceSizes: [320, 420, 640, 750, 828, 1080],
+    // 작은 이미지 사이즈 더 세분화
+    imageSizes: [16, 32, 48, 64, 96, 128, 192, 256],
+    // 모바일에 최적화된 포맷 (WebP 우선, AVIF는 지원 기기만)
+    formats: ['image/webp'],
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
@@ -26,12 +27,11 @@ const nextConfig = {
         hostname: '**',
       }
     ],
-    // 캐시 최적화
-    minimumCacheTTL: 60 * 60 * 24 * 7, // 7일
+    // 모바일 캐시 최적화 (더 짧은 캐시)
+    minimumCacheTTL: 60 * 60 * 24 * 3, // 3일로 단축
   },
   // 성능 최적화 설정 (빌드 오류 방지)
   experimental: {
-    // optimizeCss: true, // 빌드 오류 원인이므로 비활성화
     optimizeServerReact: true, // React 서버 최적화만 유지
   },
   // 압축 설정

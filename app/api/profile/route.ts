@@ -9,76 +9,39 @@ export const dynamic = 'force-dynamic'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    })
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
+    // 현재 사용자 인증 확인
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     if (userError || !user) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Unauthorized",
-        },
-        { status: 401 },
+        { error: 'Unauthorized' },
+        { status: 401 }
       )
     }
 
-    // Get the user's profile
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
+    // 사용자 프로필 조회
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
       .single()
 
-    if (profileError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to fetch profile",
-        },
-        { status: 500 },
-      )
-    }
+    if (error) throw error
 
-    return NextResponse.json({
-      success: true,
-      profile,
-    })
+    return NextResponse.json(profile)
   } catch (error) {
-    console.error("Error fetching profile:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Internal server error",
-      },
-      { status: 500 },
-    )
+    console.error('프로필 조회 중 오류:', error)
+    return new NextResponse('프로필을 불러오는데 실패했습니다.', { status: 500 })
   }
 }
 
 export async function PUT(req: Request) {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-      },
-    })
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
     // Get the current user
     const {

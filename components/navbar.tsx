@@ -20,214 +20,265 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu, Sparkles } from "lucide-react"
+import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu, Sparkles, Loader2, AlertCircle } from "lucide-react"
+import { toast } from 'sonner'
 
 export function Navbar() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, logoutStatus } = useAuth()
   const { remainingTickets } = useTicket()
   const [isOpen, setIsOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleMobileMenuClose = () => {
     setIsOpen(false)
+    setMobileMenuOpen(false)
+  }
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true)
+      await signOut()
+    } catch (error) {
+      console.error('로그아웃 중 오류:', error)
+      toast.error('로그아웃 중 문제가 발생했습니다.')
+    }
+  }
+
+  // 로그아웃 처리 중 UI
+  const LogoutProgress = () => {
+    if (logoutStatus.step === 'initial') return null
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 space-y-4">
+          <div className="flex items-center justify-center">
+            {logoutStatus.step !== 'error' ? (
+              <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+            ) : (
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            )}
+          </div>
+          <p className="text-center text-gray-600">
+            {logoutStatus.message}
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <nav className="bg-white border-b-2 border-purple-200 py-3 px-4 md:px-8">
-      <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <div className="flex items-center space-x-6">
-          <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-purple-600 font-display">돌핀인캘리 AI</span>
-          </Link>
-
-          <div className="hidden md:flex space-x-4">
-            <Link href="/future-me" className="text-purple-600 hover:text-purple-800">
-              시간버스
+    <>
+      <nav className="bg-white border-b-2 border-purple-200 py-3 px-4 md:px-8">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-6">
+            <Link href="/" className="flex items-center">
+              <span className="text-2xl font-bold text-purple-600 font-display">돌핀인캘리 AI</span>
             </Link>
-            <Link href="/doodle-to-reality" className="text-teal-600 hover:text-teal-800">
-              낙서 현실화
-            </Link>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          {/* 데스크톱 버전 */}
-          <div className="hidden md:flex items-center gap-4">
-            {user ? (
-              <>
-                <div className="flex items-center gap-2 bg-purple-100 px-3 py-1 rounded-full">
-                  <Ticket className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-700">티켓: {remainingTickets}개</span>
-                </div>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="rounded-full h-10 w-10 p-0">
-                      <Avatar>
-                        <AvatarFallback className="bg-purple-200 text-purple-700">
-                          {user.email?.charAt(0).toUpperCase() || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="p-2">
-                      <p className="text-sm font-medium">{user.email}</p>
-                      <p className="text-xs text-gray-500">티켓: {remainingTickets}개</p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <Link href="/profile">
-                      <DropdownMenuItem>
-                        <User className="mr-2 h-4 w-4" />
-                        <span>프로필</span>
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/future-me">
-                      <DropdownMenuItem>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        <span>시간버스</span>
-                      </DropdownMenuItem>
-                    </Link>
-                    <Link href="/doodle-to-reality">
-                      <DropdownMenuItem>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        <span>낙서 현실화</span>
-                      </DropdownMenuItem>
-                    </Link>
-                    <DropdownMenuItem disabled className="cursor-not-allowed opacity-50">
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      <span>티켓 구매 (준비중)</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
-                      <LogOut className="mr-2 h-4 w-4" />
-                      <span>로그아웃</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </>
-            ) : (
-              <div className="flex gap-2">
-                <Link href="/login">
-                  <Button variant="outline" className="rounded-full border-2 border-purple-300 hover:bg-purple-100">
-                    로그인
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
-                    회원가입
-                  </Button>
-                </Link>
-              </div>
-            )}
+            <div className="hidden md:flex space-x-4">
+              <Link href="/future-me" className="text-purple-600 hover:text-purple-800">
+                시간버스
+              </Link>
+              <Link href="/doodle-to-reality" className="text-teal-600 hover:text-teal-800">
+                낙서 현실화
+              </Link>
+            </div>
           </div>
 
-          {/* 모바일 버전 햄버거 메뉴 */}
-          <div className="md:hidden">
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-purple-600">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                <SheetHeader>
-                  <SheetTitle className="text-purple-600 font-display">돌핀인캘리 AI</SheetTitle>
-                </SheetHeader>
-                
-                <div className="flex flex-col gap-4 mt-6">
-                  {/* 네비게이션 메뉴 */}
-                  <div className="flex flex-col gap-3">
-                    <Link 
-                      href="/future-me" 
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 text-purple-600 hover:text-purple-800"
-                      onClick={handleMobileMenuClose}
-                    >
-                      <Sparkles className="h-5 w-5" />
-                      <span className="font-medium">시간버스</span>
-                    </Link>
-                    
-                    <Link 
-                      href="/doodle-to-reality" 
-                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 text-teal-600 hover:text-teal-800"
-                      onClick={handleMobileMenuClose}
-                    >
-                      <Pencil className="h-5 w-5" />
-                      <span className="font-medium">낙서 현실화</span>
-                    </Link>
+          <div className="flex items-center gap-4">
+            {/* 데스크톱 버전 */}
+            <div className="hidden md:flex items-center gap-4">
+              {user ? (
+                <>
+                  <div className="flex items-center gap-2 bg-purple-100 px-3 py-1 rounded-full">
+                    <Ticket className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-700">티켓: {remainingTickets}개</span>
                   </div>
 
-                  <div className="border-t pt-4">
-                    {user ? (
-                      <div className="flex flex-col gap-3">
-                        {/* 사용자 정보 */}
-                        <div className="bg-purple-50 p-4 rounded-lg">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Avatar>
-                              <AvatarFallback className="bg-purple-200 text-purple-700">
-                                {user.email?.charAt(0).toUpperCase() || "U"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="rounded-full h-10 w-10 p-0">
+                        <Avatar>
+                          <AvatarFallback className="bg-purple-200 text-purple-700">
+                            {user.email?.charAt(0).toUpperCase() || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <div className="p-2">
+                        <p className="text-sm font-medium">{user.email}</p>
+                        <p className="text-xs text-gray-500">티켓: {remainingTickets}개</p>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <Link href="/profile">
+                        <DropdownMenuItem>
+                          <User className="mr-2 h-4 w-4" />
+                          <span>프로필</span>
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/future-me">
+                        <DropdownMenuItem>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          <span>시간버스</span>
+                        </DropdownMenuItem>
+                      </Link>
+                      <Link href="/doodle-to-reality">
+                        <DropdownMenuItem>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>낙서 현실화</span>
+                        </DropdownMenuItem>
+                      </Link>
+                      <DropdownMenuItem disabled className="cursor-not-allowed opacity-50">
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        <span>티켓 구매 (준비중)</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+                        <LogOut className={`h-4 w-4 ${
+                          isLoggingOut ? 'text-gray-400' : 'text-gray-600'
+                        }`} />
+                        <span className={
+                          isLoggingOut ? 'text-gray-400' : 'text-gray-700'
+                        }>
+                          로그아웃
+                        </span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <div className="flex gap-2">
+                  <Link href="/login">
+                    <Button variant="outline" className="rounded-full border-2 border-purple-300 hover:bg-purple-100">
+                      로그인
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
+                      회원가입
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 모바일 버전 햄버거 메뉴 */}
+            <div className="md:hidden">
+              <Sheet open={isOpen} onOpenChange={setIsOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-purple-600">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                  <SheetHeader>
+                    <SheetTitle className="text-purple-600 font-display">돌핀인캘리 AI</SheetTitle>
+                  </SheetHeader>
+                  
+                  <div className="flex flex-col gap-4 mt-6">
+                    {/* 네비게이션 메뉴 */}
+                    <div className="flex flex-col gap-3">
+                      <Link 
+                        href="/future-me" 
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-purple-50 text-purple-600 hover:text-purple-800"
+                        onClick={handleMobileMenuClose}
+                      >
+                        <Sparkles className="h-5 w-5" />
+                        <span className="font-medium">시간버스</span>
+                      </Link>
+                      
+                      <Link 
+                        href="/doodle-to-reality" 
+                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-teal-50 text-teal-600 hover:text-teal-800"
+                        onClick={handleMobileMenuClose}
+                      >
+                        <Pencil className="h-5 w-5" />
+                        <span className="font-medium">낙서 현실화</span>
+                      </Link>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      {user ? (
+                        <div className="flex flex-col gap-3">
+                          {/* 사용자 정보 */}
+                          <div className="bg-purple-50 p-4 rounded-lg">
+                            <div className="flex items-center gap-3 mb-2">
+                              <Avatar>
+                                <AvatarFallback className="bg-purple-200 text-purple-700">
+                                  {user.email?.charAt(0).toUpperCase() || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-purple-700">
+                              <Ticket className="h-4 w-4" />
+                              <span>티켓: {remainingTickets}개</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-purple-700">
-                            <Ticket className="h-4 w-4" />
-                            <span>티켓: {remainingTickets}개</span>
-                          </div>
-                        </div>
 
-                        {/* 사용자 메뉴 */}
-                        <Link 
-                          href="/profile" 
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50"
-                          onClick={handleMobileMenuClose}
-                        >
-                          <User className="h-5 w-5 text-gray-600" />
-                          <span>프로필</span>
-                        </Link>
-
-                        <div className="flex items-center gap-3 p-3 rounded-lg cursor-not-allowed opacity-50">
-                          <CreditCard className="h-5 w-5 text-gray-600" />
-                          <span>티켓 구매 (준비중)</span>
-                        </div>
-
-                        <button 
-                          onClick={() => {
-                            signOut()
-                            handleMobileMenuClose()
-                          }}
-                          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left w-full"
-                        >
-                          <LogOut className="h-5 w-5 text-gray-600" />
-                          <span>로그아웃</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-3">
-                        <Link 
-                          href="/login" 
-                          className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-purple-300 hover:bg-purple-50 text-purple-600"
-                          onClick={handleMobileMenuClose}
+                          {/* 사용자 메뉴 */}
+                          <Link 
+                            href="/profile" 
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50"
+                            onClick={handleMobileMenuClose}
                           >
-                            로그인
-                        </Link>
-                        <Link 
-                          href="/signup" 
-                          className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                          onClick={handleMobileMenuClose}
-                        >
-                            회원가입
-                        </Link>
-                      </div>
-                    )}
+                            <User className="h-5 w-5 text-gray-600" />
+                            <span>프로필</span>
+                          </Link>
+
+                          <div className="flex items-center gap-3 p-3 rounded-lg cursor-not-allowed opacity-50">
+                            <CreditCard className="h-5 w-5 text-gray-600" />
+                            <span>티켓 구매 (준비중)</span>
+                          </div>
+
+                          <button 
+                            onClick={handleLogout}
+                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left w-full"
+                            disabled={isLoggingOut}
+                          >
+                            <LogOut className={`h-5 w-5 ${
+                              isLoggingOut ? 'text-gray-400' : 'text-gray-600'
+                            }`} />
+                            <span className={
+                              isLoggingOut ? 'text-gray-400' : 'text-gray-700'
+                            }>
+                              로그아웃
+                            </span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          <Link 
+                            href="/login" 
+                            className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-purple-300 hover:bg-purple-50 text-purple-600"
+                            onClick={handleMobileMenuClose}
+                            >
+                              로그인
+                          </Link>
+                          <Link 
+                            href="/signup" 
+                            className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+                            onClick={handleMobileMenuClose}
+                          >
+                              회원가입
+                          </Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+      
+      {/* 로그아웃 진행 상태 표시 */}
+      <LogoutProgress />
+    </>
   )
 }

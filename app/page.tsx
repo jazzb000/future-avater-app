@@ -40,9 +40,37 @@ export default function Home() {
   const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
   const [scrollPosition, setScrollPosition] = useState(0)
   
+  // 모바일 감지 함수
+  const isMobileDevice = useCallback(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth <= 768 || 
+           /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  }, [])
+
+  // 네트워크 상태 감지 (실험적 기능)
+  const getNetworkInfo = useCallback(() => {
+    if (typeof navigator !== 'undefined' && 'connection' in navigator) {
+      const connection = (navigator as any).connection
+      return {
+        effectiveType: connection?.effectiveType || '4g',
+        downlink: connection?.downlink || 10,
+        saveData: connection?.saveData || false
+      }
+    }
+    return { effectiveType: '4g', downlink: 10, saveData: false }
+  }, [])
+
   // 스마트 프리로딩: Next.js Image와 동일한 최적화 URL 사용
   const preloadImageSmart = useCallback((url: string | undefined) => {
     if (!url || preloadedImages.has(url)) return
+    
+    const networkInfo = getNetworkInfo()
+    const isMobile = isMobileDevice()
+    
+    // 데이터 절약 모드이거나 느린 네트워크에서는 프리로딩 건너뛰기
+    if (networkInfo.saveData || (networkInfo.effectiveType === 'slow-2g' || networkInfo.effectiveType === '2g')) {
+      return
+    }
     
     // Next.js Image 컴포넌트와 완전히 동일한 방식으로 프리로딩
     const img = document.createElement('img')
@@ -54,20 +82,28 @@ export default function Home() {
     }
     // Next.js가 자동으로 최적화하므로 원본 URL 그대로 사용
     img.src = url
-  }, [preloadedImages])
+  }, [preloadedImages, getNetworkInfo, isMobileDevice])
 
-  // 스마트 프리로딩: 사용자 패턴 기반 최적화
+  // 스마트 프리로딩: 사용자 패턴 기반 최적화 (모바일 최적화)
   const preloadVisibleAreaImages = useCallback(() => {
+    const isMobile = isMobileDevice()
+    const networkInfo = getNetworkInfo()
+    
+    // 모바일이거나 느린 네트워크에서는 더 보수적으로 프리로딩
+    const maxPreloadImages = isMobile ? 8 : 20
+    const preloadMultiplier = isMobile ? 1.5 : 3.0
+    
     const viewportHeight = window.innerHeight
     const scrollTop = window.scrollY
-    const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면
+    const preloadZoneEnd = scrollTop + viewportHeight * preloadMultiplier
 
-    // 프리로딩 대상 이미지 선정
+    // 프리로딩 대상 이미지 선정 (모바일에서는 더 적게)
+    const initialLoadCount = isMobile ? 8 : 20
     const visibleImages = images
       .map((img, index) => ({ ...img, index }))
       .filter((img, arrayIndex) => {
-        // 첫 20개는 즉시 프리로딩
-        if (arrayIndex < 20) return true
+        // 첫 N개는 즉시 프리로딩
+        if (arrayIndex < initialLoadCount) return true
         // 나머지는 뷰포트 기준
         const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
         if (cardElement) {
@@ -76,22 +112,24 @@ export default function Home() {
           return absoluteTop <= preloadZoneEnd
         }
         // DOM 요소가 없으면 인덱스 기반 추정
-        const estimatedCardHeight = 400
-        const row = Math.floor(arrayIndex / 3)
+        const estimatedCardHeight = isMobile ? 300 : 400
+        const row = Math.floor(arrayIndex / (isMobile ? 1 : 3))
         const cardTop = row * estimatedCardHeight + 300
         return cardTop <= preloadZoneEnd
       })
-      .slice(0, 20) // 최대 20개
+      .slice(0, maxPreloadImages)
 
     // 낙서현실화의 경우 원본 낙서 이미지만 프리로딩
     visibleImages.forEach((image, index) => {
       if (image.type === 'doodle' && image.original_image_url) {
+        // 모바일에서는 더 긴 간격으로 프리로딩
+        const delay = isMobile ? index * 100 : index * 50
         setTimeout(() => {
           preloadImageSmart(image.original_image_url)
-        }, index * 50) // 50ms 간격
+        }, delay)
       }
     })
-  }, [images, preloadImageSmart])
+  }, [images, preloadImageSmart, isMobileDevice, getNetworkInfo])
 
   // 중복 제거 헬퍼 함수
   const removeDuplicates = useCallback((newImages: GalleryImage[], existingImages: GalleryImage[]) => {
@@ -99,7 +137,7 @@ export default function Home() {
     return newImages.filter(img => !existingIds.has(`${img.type}-${img.id}`))
   }, [])
 
-  // 두 가지 타입의 이미지를 모두 가져오기 (성능 최적화)
+  // 두 가지 타입의 이미지를 모두 가져오기 (성능 최적화, 모바일 고려)
   const fetchImages = useCallback(async (reset: boolean = false) => {
     try {
       if (reset) {
@@ -110,21 +148,22 @@ export default function Home() {
         setLoadingMore(true)
       }
       
-      // 초기 로딩 시 더 많이, 이후에는 적게 가져오기 (체감 속도 향상)
-      const limit = reset ? 12 : 8
+      const isMobile = isMobileDevice()
+      // 모바일에서는 더 적은 수의 이미지를 로드하여 속도 향상
+      const limit = reset ? (isMobile ? 8 : 12) : (isMobile ? 6 : 8)
       const currentAvatarPage = reset ? 1 : avatarPage
       const currentDoodlePage = reset ? 1 : doodlePage
       
       // 병렬로 두 API 호출하여 속도 향상
       const [avatarResponse, doodleResponse] = await Promise.all([
         fetch(`/api/gallery?type=avatar&limit=${limit}&page=${currentAvatarPage}&filter=latest`, {
-          // 브라우저 캐시 활용
+          // 모바일에서는 더 짧은 캐시 사용
           cache: 'force-cache',
-          next: { revalidate: 30 }
+          next: { revalidate: isMobile ? 15 : 30 }
         }),
         fetch(`/api/gallery?type=doodle&limit=${limit}&page=${currentDoodlePage}&filter=latest`, {
           cache: 'force-cache', 
-          next: { revalidate: 30 }
+          next: { revalidate: isMobile ? 15 : 30 }
         })
       ])
       
@@ -149,17 +188,15 @@ export default function Home() {
       } else {
         // 중복 제거 후 추가 - 논블로킹으로 처리
         startTransition(() => {
-          setImages(prev => {
-            const uniqueNewImages = removeDuplicates(newImages, prev)
-            return [...prev, ...uniqueNewImages]
-          })
+          const uniqueNewImages = removeDuplicates(newImages, images)
+          setImages(prev => [...prev, ...uniqueNewImages])
         })
       }
 
-      // 새로 로드된 이미지 후 스마트 프리로딩 실행 (더 빠르게)
+      // 새로 로드된 이미지 후 스마트 프리로딩 실행 (모바일에서는 더 늦게)
       setTimeout(() => {
         preloadVisibleAreaImages()
-      }, 100) // 메인 이미지들이 로딩된 후 0.1초 뒤 시작
+      }, isMobile ? 300 : 100) // 모바일에서는 0.3초 후 시작
 
       // 더 불러올 데이터가 있는지 확인
       const avatarHasMore = avatarData.success && avatarData.images && avatarData.images.length === limit
@@ -172,7 +209,8 @@ export default function Home() {
         total: newImages.length,
         avatarHasMore,
         doodleHasMore,
-        stillHasMore
+        stillHasMore,
+        isMobile
       })
       
       setHasMore(stillHasMore)
@@ -183,14 +221,14 @@ export default function Home() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [avatarPage, doodlePage, removeDuplicates])
+  }, [avatarPage, doodlePage, removeDuplicates, isMobileDevice, preloadVisibleAreaImages])
 
   // 초기 로딩
   useEffect(() => {
     fetchImages(true)
   }, [])
 
-  // 강력한 무한스크롤 - 더 많은 이미지 로드 
+  // 강력한 무한스크롤 - 더 많은 이미지 로드 (모바일 최적화)
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) {
       console.log('로딩 중이거나 더 이상 로드할 데이터가 없음:', { loadingMore, hasMore })
@@ -202,7 +240,8 @@ export default function Home() {
     setLoadingMore(true)
     
     try {
-      const limit = 8
+      const isMobile = isMobileDevice()
+      const limit = isMobile ? 6 : 8 // 모바일에서는 더 적게 로드
       let avatarImages: any[] = []
       let doodleImages: any[] = []
       let avatarHasMore = false
@@ -238,7 +277,8 @@ export default function Home() {
       console.log('📊 로딩된 새 이미지:', { 
         avatarCount: avatarImages.length, 
         doodleCount: doodleImages.length,
-        total: newImages.length 
+        total: newImages.length,
+        isMobile
       })
 
       if (newImages.length > 0) {
@@ -259,10 +299,10 @@ export default function Home() {
       console.log('📈 더 로드할 데이터 여부:', { avatarHasMore, doodleHasMore, stillHasMore })
       setHasMore(stillHasMore)
 
-      // 프리로딩 실행
+      // 프리로딩 실행 (모바일에서는 더 늦게)
       setTimeout(() => {
         preloadVisibleAreaImages()
-      }, 100)
+      }, isMobile ? 300 : 100)
 
       // 성공적으로 로드했으면 에러 카운트 리셋
       localStorage.removeItem('loadMoreErrorCount')
@@ -283,9 +323,9 @@ export default function Home() {
       setLoadingMore(false)
       console.log('🎉 이미지 로딩 완료')
     }
-  }, [loadingMore, hasMore, avatarPage, doodlePage, removeDuplicates, preloadVisibleAreaImages])
+  }, [loadingMore, hasMore, avatarPage, doodlePage, removeDuplicates, preloadVisibleAreaImages, isMobileDevice])
 
-  // 강화된 스크롤 이벤트 핸들러
+  // 강화된 스크롤 이벤트 핸들러 (모바일 최적화)
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout | null = null
     let isThrottled = false
@@ -296,40 +336,48 @@ export default function Home() {
       const direction = currentScrollY > lastScrollY ? 'down' : 'up'
       lastScrollY = currentScrollY
       
-      // 스크롤 위치를 localStorage에 저장 (throttle)
+      const isMobile = isMobileDevice()
+      
+      // 스크롤 위치를 localStorage에 저장 (throttle, 모바일에서는 더 길게)
       if (scrollTimeout) clearTimeout(scrollTimeout)
       scrollTimeout = setTimeout(() => {
         localStorage.setItem('home-scroll-position', currentScrollY.toString())
         setScrollPosition(currentScrollY)
-      }, 500)
+      }, isMobile ? 1000 : 500) // 모바일에서는 1초 간격
       
       if (isThrottled) return
       isThrottled = true
       
       setTimeout(() => {
-        // 스크롤 시 현재 화면 기준 스마트 프리로딩 실행
-        preloadVisibleAreaImages()
+        // 스크롤 시 현재 화면 기준 스마트 프리로딩 실행 (모바일에서는 덜 자주)
+        if (!isMobile || Math.random() > 0.7) { // 모바일에서는 30% 확률로만 실행
+          preloadVisibleAreaImages()
+        }
         
-        // 개선된 무한 스크롤 트리거 (아래 방향으로만)
+        // 개선된 무한 스크롤 트리거 (아래 방향으로만, 모바일에서는 더 일찍)
         if (direction === 'down') {
           const { scrollTop, scrollHeight, clientHeight } = document.documentElement
           const scrollPercent = (scrollTop / (scrollHeight - clientHeight)) * 100
           
-          // 80% 지점에서 트리거하거나, 하단 600px 이내
-          const shouldLoad = scrollPercent > 80 || 
-                           (scrollTop + clientHeight + 600 >= scrollHeight)
+          // 모바일에서는 더 일찍 트리거
+          const triggerPercent = isMobile ? 70 : 80
+          const triggerDistance = isMobile ? 800 : 600
+          
+          const shouldLoad = scrollPercent > triggerPercent || 
+                           (scrollTop + clientHeight + triggerDistance >= scrollHeight)
 
           if (shouldLoad && !loadingMore && hasMore) {
             console.log('🚀 무한스크롤 트리거:', { 
               scrollPercent: Math.round(scrollPercent), 
-              remaining: scrollHeight - scrollTop - clientHeight 
+              remaining: scrollHeight - scrollTop - clientHeight,
+              isMobile
             })
             loadMore()
           }
         }
         
         isThrottled = false
-      }, 100) // 더 빠른 응답
+      }, isMobile ? 200 : 100) // 모바일에서는 더 느린 응답
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -338,10 +386,12 @@ export default function Home() {
       window.removeEventListener('scroll', handleScroll)
       if (scrollTimeout) clearTimeout(scrollTimeout)
     }
-  }, [loadMore, loadingMore, hasMore, preloadVisibleAreaImages])
+  }, [loadMore, loadingMore, hasMore, preloadVisibleAreaImages, isMobileDevice])
 
-  // 향상된 Intersection Observer - 가시영역 우선 로딩 + 현재 화면 기준
+  // 향상된 Intersection Observer - 가시영역 우선 로딩 + 현재 화면 기준 (모바일 최적화)
   useEffect(() => {
+    const isMobile = isMobileDevice()
+    
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -359,8 +409,8 @@ export default function Home() {
                 img.loading = 'eager'
               }
 
-              // 낙서현실화의 경우 원본 낙서 이미지만 프리로딩
-              if (image.type === 'doodle' && image.original_image_url) {
+              // 낙서현실화의 경우 원본 낙서 이미지만 프리로딩 (모바일에서는 더 보수적)
+              if (image.type === 'doodle' && image.original_image_url && !isMobile) {
                 const delay = intersectionRatio > 0.3 ? 0 : 100 // 화면 30% 이상 보이면 즉시
                 setTimeout(() => {
                   preloadImageSmart(image.original_image_url)
@@ -371,7 +421,7 @@ export default function Home() {
         })
       },
       {
-        rootMargin: '300px 0px', // 위아래 300px 마진으로 확대
+        rootMargin: isMobile ? '150px 0px' : '300px 0px', // 모바일에서는 더 작은 마진
         threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0] // 더 세밀한 가시성 단계
       }
     )
@@ -381,7 +431,7 @@ export default function Home() {
     imageCards.forEach(card => observer.observe(card))
 
     return () => observer.disconnect()
-  }, [images, preloadImageSmart])
+  }, [images, preloadImageSmart, isMobileDevice])
 
   // 카드 호버 - 이제 아무것도 안함 (이미 프리로딩됨)
   const handleCardHover = (image: GalleryImage) => {
@@ -597,11 +647,11 @@ export default function Home() {
                                ? 'opacity-100 scale-100'
                                : 'opacity-0 scale-95'
                            }`}
-                           loading={images.indexOf(image) < 12 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 12}
-                           quality={80}
-                           fetchPriority={images.indexOf(image) < 12 ? "high" : "low"}
-                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                           loading={images.indexOf(image) < (typeof window !== 'undefined' && window.innerWidth <= 768 ? 6 : 12) ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < (typeof window !== 'undefined' && window.innerWidth <= 768 ? 6 : 12)}
+                           quality={typeof window !== 'undefined' && window.innerWidth <= 768 ? 70 : 80}
+                           fetchPriority={images.indexOf(image) < (typeof window !== 'undefined' && window.innerWidth <= 768 ? 6 : 12) ? "high" : "low"}
+                           sizes="(max-width: 480px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 50vw, 33vw"
                            placeholder="blur"
                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                            onLoad={() => {
