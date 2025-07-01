@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseServerClient } from "@/lib/supabase-server"
 
 // Supabase 클라이언트 초기화 (쿠키 사용)
-const getSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  return createClient(supabaseUrl, supabaseAnonKey)
-}
+const getSupabaseClient = () => supabaseServerClient()
 
 export async function GET(req: Request) {
   try {

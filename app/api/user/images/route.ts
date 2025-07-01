@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { supabaseServerClient } from "@/lib/supabase-server"
 
 // 동적 렌더링 강제 (빌드 시 정적 생성 방지)
 export const dynamic = 'force-dynamic'
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
 export async function GET(req: Request) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const supabase = supabaseServerClient()
 
     // Get the current user
     const {
