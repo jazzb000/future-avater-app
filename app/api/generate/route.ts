@@ -5,14 +5,9 @@ import sharp from "sharp"
 import fs from "fs/promises"
 import path from "path"
 
-// API 라우트 설정 - bodyParser 크기 제한 증가
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb', // 50MB로 증가
-    },
-  },
-}
+// Next.js 14 호환 설정
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 
 // OpenAI 클라이언트 초기화
@@ -61,12 +56,12 @@ export async function POST(req: Request) {
       console.log("📝 요청 데이터 길이:", requestText.length)
       console.log("📝 요청 데이터 시작 부분:", requestText.substring(0, 200))
       
-      // 요청 데이터가 너무 큰 경우 체크
-      if (requestText.length > 50 * 1024 * 1024) { // 50MB 제한
+      // 요청 데이터가 너무 큰 경우 체크 (더 엄격하게)
+      if (requestText.length > 10 * 1024 * 1024) { // 10MB 제한
         return NextResponse.json(
           {
             success: false,
-            error: "이미지 파일이 너무 큽니다. 10MB 이하의 파일을 사용해주세요.",
+            error: "이미지 파일이 너무 큽니다. 더 작은 이미지를 사용해주세요.",
           },
           { status: 413 }
         )

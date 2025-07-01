@@ -510,8 +510,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (빌드 환경에서는 더 작게)
-            const maxSize = process.env.NODE_ENV === 'production' ? 1024 : 2048
+            // 최대 해상도 제한 (더 작게 설정하여 안정성 확보)
+            const maxSize = 800
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
@@ -546,8 +546,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
               return
             }
             
-            // PNG로 변환 (고품질) - 일관성 유지
-            const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            // JPEG로 변환 (더 작은 파일 크기를 위해)
+            const optimizedImage = canvas.toDataURL('image/jpeg', 0.7)
             
             // 변환된 이미지 검증
             if (!optimizedImage || optimizedImage === "data:,") {
@@ -622,8 +622,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (빌드 환경에서는 더 작게)
-            const maxSize = process.env.NODE_ENV === 'production' ? 1024 : 2048
+            // 최대 해상도 제한 (더 작게 설정하여 안정성 확보)
+            const maxSize = 800
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
@@ -653,13 +653,13 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
                 throw new Error("이미지 데이터를 가져올 수 없습니다.")
               }
             } catch (drawError) {
-              console.error("드래그앤드롭 이미지 그리기 실패:", drawError)
+              console.error("이미지 그리기 실패:", drawError)
               setError("이미지 처리에 실패했습니다. 다른 이미지를 시도해주세요.")
               return
             }
             
-            // PNG로 변환 (고품질) - 일관성 유지
-            const optimizedImage = canvas.toDataURL('image/png', 1.0)
+            // JPEG로 변환 (더 작은 파일 크기를 위해)
+            const optimizedImage = canvas.toDataURL('image/jpeg', 0.7)
             
             // 변환된 이미지 검증
             if (!optimizedImage || optimizedImage === "data:,") {
