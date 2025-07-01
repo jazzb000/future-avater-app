@@ -17,6 +17,7 @@ import { User, ImageIcon, Eye, EyeOff, Loader2, Sparkles, Pencil, QrCode, Downlo
 import { Switch } from "@/components/ui/switch"
 import { QRCodeSVG } from "qrcode.react"
 import Link from "next/link"
+import { OptimizedImage } from '@/components/optimized-image'
 
 type Profile = {
   username: string
@@ -139,23 +140,6 @@ export default function ProfilePage() {
     fetchProfile()
     fetchImages()
   }, [user, router])
-
-  // 이미지 로딩 완료 후 모든 카드가 표시되도록 하는 안전장치
-  useEffect(() => {
-    if (!loading && images.length > 0) {
-      // 2초 후에 모든 카드를 강제로 표시 (이미지 로드 실패 등을 대비)
-      const timer = setTimeout(() => {
-        images.forEach(image => {
-          const cardElement = document.getElementById(`profile-card-${image.id}`);
-          if (cardElement && cardElement.style.opacity === '0') {
-            cardElement.style.opacity = '1';
-          }
-        });
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [loading, images])
 
   // ESC 키로 모달 닫기
   useEffect(() => {
@@ -490,52 +474,20 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {images.map((image) => (
-                  <div 
-                    key={image.id} 
-                    className="border-3 border-purple-200 rounded-xl overflow-hidden hover:border-purple-400 hover:shadow-lg transition-all duration-300 opacity-0 cursor-pointer"
-                    id={`profile-card-${image.id}`}
+                {images.map((image, idx) => (
+                  <div
+                    key={image.id}
+                    className="border-3 border-purple-200 rounded-xl overflow-hidden hover:border-purple-400 hover:shadow-lg transition-all duration-300 cursor-pointer"
                     onClick={() => handleImageClick(image)}
                   >
-                    <div className="aspect-square overflow-hidden bg-gray-100 relative">
-                      {/* 이미지 로딩 인디케이터 */}
-                      <div 
-                        className="absolute inset-0 bg-gray-50 flex items-center justify-center"
-                        id={`loader-${image.id}`}
-                      >
-                        <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-                      </div>
-                      
-                      <img
-                        src={image.type === 'future' ? image.image_url : image.result_image_url || "/placeholder.svg"}
-                        alt={image.type === 'future' ? `${image.job} 이미지` : "낙서 현실화 이미지"}
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105 relative z-10"
-                        loading="lazy"
-                        onLoad={(e) => {
-                          // 이미지 로드 완료 후 로딩 인디케이터 숨기고 카드 표시
-                          const loaderElement = document.getElementById(`loader-${image.id}`);
-                          const cardElement = document.getElementById(`profile-card-${image.id}`);
-                          if (loaderElement) {
-                            loaderElement.style.display = 'none';
-                          }
-                          if (cardElement) {
-                            cardElement.style.opacity = '1';
-                          }
-                        }}
-                        onError={(e) => {
-                          // 이미지 로드 실패 시 기본 이미지 표시하고 로딩 인디케이터 숨김
-                          e.currentTarget.src = "/placeholder.svg";
-                          const loaderElement = document.getElementById(`loader-${image.id}`);
-                          const cardElement = document.getElementById(`profile-card-${image.id}`);
-                          if (loaderElement) {
-                            loaderElement.style.display = 'none';
-                          }
-                          if (cardElement) {
-                            cardElement.style.opacity = '1';
-                          }
-                        }}
-                      />
-                    </div>
+                    <OptimizedImage
+                      src={image.type === 'future' ? image.image_url : image.result_image_url || '/placeholder.svg'}
+                      alt={image.type === 'future' ? `${image.job} 이미지` : '낙서 현실화 이미지'}
+                      width={600}
+                      height={600}
+                      index={idx}
+                      className="w-full h-auto aspect-square"
+                    />
                     <div className="p-3 bg-white">
                       <p className="font-medium text-purple-700 text-sm">
                         {image.type === 'future' 
