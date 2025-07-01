@@ -4,6 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { enhancedSignOut } from "@/lib/auth-utils"
 import type { User } from "@supabase/supabase-js"
 
 type AuthContextType = {
@@ -56,7 +57,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    try {
+      console.log("🚪 AuthContext 로그아웃 시작...")
+      
+      // 강화된 로그아웃 함수 사용
+      await enhancedSignOut()
+      
+      // 로컬 상태 강제 초기화
+      setUser(null)
+      setLoading(false)
+      
+      console.log("✅ AuthContext 로그아웃 완료")
+    } catch (error) {
+      console.error("❌ AuthContext 로그아웃 중 오류:", error)
+      
+      // 에러가 발생해도 강제로 상태 초기화
+      setUser(null)
+      setLoading(false)
+      
+      // 홈페이지로 리다이렉션
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
+    }
   }
 
   return <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</AuthContext.Provider>

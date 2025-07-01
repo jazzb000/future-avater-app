@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useTicket } from "@/contexts/ticket-context"
+import { forceClearSession } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -20,7 +21,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu, Sparkles } from "lucide-react"
+import { Ticket, User, LogOut, CreditCard, ImageIcon, Pencil, Menu, Sparkles, Bug } from "lucide-react"
 
 export function Navbar() {
   const { user, signOut } = useAuth()
@@ -98,7 +99,30 @@ export function Navbar() {
                       <span>티켓 구매 (준비중)</span>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
+                    {/* 개발 환경에서만 표시되는 디버깅 메뉴 */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <DropdownMenuItem onClick={() => {
+                        console.log("🐛 강제 세션 정리 실행")
+                        forceClearSession()
+                      }}>
+                        <Bug className="mr-2 h-4 w-4" />
+                        <span>강제 세션 정리 (개발용)</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={async () => {
+                      try {
+                        console.log("🔄 네비게이션 로그아웃 시작...")
+                        await signOut()
+                        console.log("✅ 네비게이션 로그아웃 완료")
+                      } catch (error) {
+                        console.error("❌ 네비게이션 로그아웃 오류:", error)
+                        // 에러가 발생해도 강제로 홈페이지로 이동
+                        if (typeof window !== 'undefined') {
+                          window.location.href = '/'
+                        }
+                      }
+                    }}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>로그아웃</span>
                     </DropdownMenuItem>
@@ -193,9 +217,20 @@ export function Navbar() {
                         </div>
 
                         <button 
-                          onClick={() => {
-                            signOut()
-                            handleMobileMenuClose()
+                          onClick={async () => {
+                            try {
+                              console.log("🔄 모바일 로그아웃 시작...")
+                              await signOut()
+                              handleMobileMenuClose()
+                              console.log("✅ 모바일 로그아웃 완료")
+                            } catch (error) {
+                              console.error("❌ 모바일 로그아웃 오류:", error)
+                              handleMobileMenuClose()
+                              // 에러가 발생해도 강제로 홈페이지로 이동
+                              if (typeof window !== 'undefined') {
+                                window.location.href = '/'
+                              }
+                            }
                           }}
                           className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left w-full"
                         >

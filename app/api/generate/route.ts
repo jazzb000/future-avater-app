@@ -5,6 +5,15 @@ import sharp from "sharp"
 import fs from "fs/promises"
 import path from "path"
 
+// API 라우트 설정 - bodyParser 크기 제한 증가
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb', // 50MB로 증가
+    },
+  },
+}
+
 
 // OpenAI 클라이언트 초기화
 const openai = new OpenAI({
