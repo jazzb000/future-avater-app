@@ -85,8 +85,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
     }
   }, [activeTab])
 
-  // activeTab이 변경될 때마다 강제로 카메라 상태 초기화 (낙서현실화와 완전 동일)
-  const handleTabChange = (value: string) => {
+  // 탭 변경 핸들러 - 카메라 탭 클릭시 즉시 카메라 시작
+  const handleTabChange = async (value: string) => {
     console.log(`탭 변경: ${activeTab} -> ${value}`)
     setActiveTab(value)
     
@@ -95,8 +95,18 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       stopCameraStream()
       setError(null) // 이전 에러 상태 초기화
       
-      // 모바일과 데스크톱 모두 수동 카메라 시작 (사용자 명시적 액션 요구)
-      console.log("카메라 탭 선택됨 - 사용자 액션 대기")
+      // 🚀 카메라 탭 클릭 즉시 카메라 시작! (사용자가 원하는 동작)
+      console.log("🎥 카메라 탭 선택됨 - 즉시 카메라 시작!")
+      
+      // 짧은 지연 후 카메라 시작 (UI 업데이트 후)
+      setTimeout(async () => {
+        const result = await startCamera()
+        if (result) {
+          console.log("✅ 카메라 자동 시작 성공!")
+        } else {
+          console.log("❌ 카메라 자동 시작 실패 - 사용자가 수동으로 시도 가능")
+        }
+      }, 100)
     } else {
       // 다른 탭으로 이동할 때는 카메라 정리
       stopCameraStream()
@@ -247,26 +257,39 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       setIsLoadingCamera(false)
 
       if (videoRef.current) {
+        // 먼저 스트림 설정
         videoRef.current.srcObject = stream
         
-        // 모바일 최적화 속성 설정
+        // 중요한 비디오 속성들 설정
+        videoRef.current.setAttribute('autoplay', 'true')
         videoRef.current.setAttribute('playsinline', 'true')
         videoRef.current.setAttribute('webkit-playsinline', 'true')
+        videoRef.current.setAttribute('muted', 'true')
+        videoRef.current.muted = true // JavaScript 속성도 설정
         
-        // 비디오 로드 대기 (더 빠른 방법)
+        // 비디오 크기 강제 설정 (검은 화면 방지)
+        videoRef.current.style.width = '100%'
+        videoRef.current.style.height = '100%'
+        videoRef.current.style.objectFit = 'cover'
+        videoRef.current.style.transform = 'scaleX(-1)' // 거울 모드 (셀카처럼)
+        
+        console.log("🎥 비디오 요소 설정 완료, 스트림 연결 중...")
+        
+        // 비디오 로딩 대기 개선
         const waitForVideoLoad = async () => {
           let attempts = 0
-          const maxAttempts = 30 // 100ms * 30 = 3초
+          const maxAttempts = 50 // 더 긴 대기시간 (5초)
           
           while (attempts < maxAttempts) {
             if (videoRef.current && 
                 videoRef.current.videoWidth > 0 && 
                 videoRef.current.videoHeight > 0 && 
                 videoRef.current.readyState >= 2) {
-              console.log("비디오 로드 완료:", {
+              console.log("✅ 비디오 로드 완료:", {
                 width: videoRef.current.videoWidth,
                 height: videoRef.current.videoHeight,
-                readyState: videoRef.current.readyState
+                readyState: videoRef.current.readyState,
+                hasStream: !!videoRef.current.srcObject
               })
               return true
             }
@@ -274,26 +297,37 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
             await new Promise(resolve => setTimeout(resolve, 100))
             attempts++
             
-            if (attempts % 5 === 0) {
-              console.log(`비디오 로드 대기 중... (${attempts}/${maxAttempts})`)
+            // 중간 체크 로그
+            if (attempts % 10 === 0) {
+              console.log(`🔄 비디오 로드 대기 중... (${attempts}/${maxAttempts})`, {
+                videoWidth: videoRef.current?.videoWidth || 0,
+                videoHeight: videoRef.current?.videoHeight || 0,
+                readyState: videoRef.current?.readyState || 0,
+                srcObject: !!videoRef.current?.srcObject
+              })
             }
           }
           
-          console.warn("비디오 로드 타임아웃 - 강제 진행")
-          return true // 타임아웃이어도 진행 (일부 모바일에서 필요)
+          console.warn("⏰ 비디오 로드 타임아웃")
+          return false
         }
         
-        const videoLoaded = await waitForVideoLoad()
-        if (!videoLoaded) {
-          console.warn("비디오 로드 실패하지만 계속 진행")
-        }
-
-        // 비디오 재생 시도
+        // 비디오 재생 시도 (더 적극적)
         try {
+          console.log("🎬 비디오 재생 시작...")
           await videoRef.current.play()
-          console.log("비디오 재생 시작됨")
+          
+          // 재생 후 로딩 대기
+          const videoLoaded = await waitForVideoLoad()
+          if (!videoLoaded) {
+            console.warn("⚠️ 비디오 로드 타임아웃 - 하지만 카메라는 활성화됨")
+            // 타임아웃이어도 카메라는 활성화 상태로 진행
+          } else {
+            console.log("🎉 카메라 완전 준비 완료!")
+          }
         } catch (playError) {
-          console.log("비디오 자동 재생 실패:", playError)
+          console.log("⚠️ 비디오 자동 재생 실패:", playError)
+          // 자동 재생 실패해도 스트림은 있으니 진행
         }
       }
 
@@ -686,12 +720,24 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
         </div>
       ) : (
         <Tabs defaultValue="upload" value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className={`grid ${isMobile() ? 'grid-cols-1' : 'grid-cols-2'} mb-4 bg-purple-100`}>
-            <TabsTrigger value="upload" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
-              사진 올리기
-            </TabsTrigger>
+          <TabsList className="grid grid-cols-2 mb-4 bg-purple-100">
             {!isMobile() && (
-              <TabsTrigger value="camera" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+              <TabsTrigger value="upload" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+                <Upload className="mr-2 h-4 w-4" />
+                업로드
+              </TabsTrigger>
+            )}
+            {!isMobile() && (
+              <TabsTrigger
+                value="camera"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+                onClick={async () => {
+                  setTimeout(() => {
+                    startCamera();
+                  }, 100);
+                }}
+              >
+                <Camera className="mr-2 h-4 w-4" />
                 사진 찍기
               </TabsTrigger>
             )}

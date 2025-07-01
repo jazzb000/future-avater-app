@@ -41,14 +41,10 @@ export default function Home() {
   const [scrollPosition, setScrollPosition] = useState(0)
   
   // 스마트 프리로딩: Next.js Image와 동일한 최적화 URL 사용
-  const preloadImageSmart = useCallback((url: string) => {
+  const preloadImageSmart = useCallback((url: string | undefined) => {
     if (!url || preloadedImages.has(url)) return
     
-    // Next.js 이미지 최적화 URL 생성 (빌드환경 고려)
-    const nextImageUrl = process.env.NODE_ENV === 'development' 
-      ? url // 개발환경에서는 원본 URL
-      : `/_next/image?url=${encodeURIComponent(url)}&w=640&q=85` // 빌드환경에서는 최적화 URL (갤러리와 동일한 quality)
-    
+    // Next.js Image 컴포넌트와 완전히 동일한 방식으로 프리로딩
     const img = document.createElement('img')
     img.onload = () => {
       setPreloadedImages(prev => new Set(prev).add(url))
@@ -56,7 +52,8 @@ export default function Home() {
     img.onerror = () => {
       // 에러는 조용히 처리
     }
-    img.src = nextImageUrl
+    // Next.js가 자동으로 최적화하므로 원본 URL 그대로 사용
+    img.src = url
   }, [preloadedImages])
 
   // 스마트 프리로딩: 사용자 패턴 기반 최적화
@@ -65,13 +62,14 @@ export default function Home() {
     const scrollTop = window.scrollY
     const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면 (더 적극적)
 
-    // 1. 낙서 원본 이미지 프리로딩 (기존)
-    const visibleDoodleImages = images
+    // 메인 이미지와 원본 낙서를 함께 프리로딩 (효율적)
+    const visibleImages = images
       .map((img, index) => ({ ...img, index }))
       .filter((img, arrayIndex) => {
-        if (img.type !== 'doodle' || !img.original_image_url) return false
+        // 첫 20개는 즉시 프리로딩
+        if (arrayIndex < 20) return true
         
-        // 실제 DOM 요소의 위치 확인
+        // 나머지는 뷰포트 기준
         const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
         if (cardElement) {
           const rect = cardElement.getBoundingClientRect()
@@ -85,43 +83,33 @@ export default function Home() {
         const cardTop = row * estimatedCardHeight + 300
         return cardTop <= preloadZoneEnd
       })
-      .slice(0, 12) // 더 많이 프리로딩
-
-    // 2. 메인 갤러리 이미지도 적극적으로 프리로딩 (새로 추가)
-    const visibleMainImages = images
-      .filter((img, index) => {
-        // 첫 20개는 즉시 프리로딩
-        if (index < 20) return true
-        
-        // 나머지는 뷰포트 기준
-        const cardElement = document.getElementById(`card-${img.type}-${img.id}`)
-        if (cardElement) {
-          const rect = cardElement.getBoundingClientRect()
-          const absoluteTop = rect.top + scrollTop
-          return absoluteTop <= preloadZoneEnd
-        }
-        return false
-              })
       .slice(0, 20) // 최대 20개
 
-    // 낙서 원본 프리로딩 (더 빠른 로딩)
-    visibleDoodleImages.forEach((image, index) => {
-      if (image.original_image_url) {
-        setTimeout(() => {
-          preloadImageSmart(image.original_image_url!)
-        }, index * 30) // 더 빠른 간격 (50ms → 30ms)
-      }
+    // 모든 필요한 이미지를 한번에 프리로딩 (우선순위 최적화)
+    visibleImages.forEach((image, index) => {
+      setTimeout(() => {
+        // 🚀 1. 현실화된 이미지 (낙서→AI 변환 결과) - 최우선
+        if (image.type === 'doodle' && image.result_image_url) {
+          preloadImageSmart(image.result_image_url)
+        }
+        
+        // 🚀 2. 시간버스 이미지 (AI 생성 아바타) - 우선
+        if (image.type === 'avatar' && image.image_url) {
+          preloadImageSmart(image.image_url)
+        }
+      }, index * 15) // 현실화된 이미지와 시간버스를 더 빠르게 로딩 (20ms → 15ms)
     })
-
-    // 메인 이미지 프리로딩 (빌드환경에서도 빠른 로딩)
-    visibleMainImages.forEach((image, index) => {
-      const mainImageUrl = image.type === 'doodle' ? image.result_image_url : image.image_url
-      if (mainImageUrl && index >= 6) { // 첫 6개는 이미 priority 처리됨
-        setTimeout(() => {
-          preloadImageSmart(mainImageUrl)
-        }, (index - 6) * 30 + 100) // 낙서 원본 이후에 시작 (더 빠르게)
-      }
-    })
+    
+    // 📝 3. 원본 낙서는 나중에 별도로 프리로딩 (우선순위 낮음)
+    setTimeout(() => {
+      visibleImages.forEach((image, index) => {
+        if (image.type === 'doodle' && image.original_image_url) {
+          setTimeout(() => {
+            preloadImageSmart(image.original_image_url)
+          }, index * 50) // 원본 낙서는 더 느린 간격으로 (50ms)
+        }
+      })
+    }, 500) // 메인 이미지들이 모두 로딩된 후 0.5초 뒤에 시작
   }, [images, preloadImageSmart])
 
   // 중복 제거 헬퍼 함수
@@ -414,72 +402,16 @@ export default function Home() {
     return () => observer.disconnect()
   }, [images, preloadImageSmart])
 
-  // 카드 호버 시 모달 이미지 프리로딩
+  // 카드 호버 - 이제 아무것도 안함 (이미 프리로딩됨)
   const handleCardHover = (image: GalleryImage) => {
-    const imagesToPreload: string[] = []
-    
-    if (image.type === 'doodle') {
-      // 낙서현실화: 원본과 결과 이미지 프리로드
-      if (image.original_image_url && !preloadedImages.has(image.original_image_url)) {
-        imagesToPreload.push(image.original_image_url)
-      }
-      if (image.result_image_url && !preloadedImages.has(image.result_image_url)) {
-        imagesToPreload.push(image.result_image_url)
-      }
-    } else {
-      // 시간버스: 이미지 프리로드
-      if (image.image_url && !preloadedImages.has(image.image_url)) {
-        imagesToPreload.push(image.image_url)
-      }
-    }
-    
-    // 백그라운드에서 조용히 프리로딩
-    imagesToPreload.forEach(url => {
-      const img = document.createElement('img')
-      img.crossOrigin = 'anonymous'
-      img.loading = 'lazy' // 호버는 lazy로
-      img.onload = () => {
-        setPreloadedImages(prev => new Set([...prev, url]))
-      }
-      img.src = url
-    })
+    // 모든 이미지가 이미 프리로딩되므로 추가 작업 불필요
   }
 
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
     setSelectedImage(image)
     setModalOpen(true)
-    
-    // 모달에서 필요한 모든 이미지를 즉시 프리로드
-    const imagesToPreload: string[] = []
-    
-    if (image.type === 'doodle') {
-      // 낙서현실화: 원본과 결과 이미지 모두 프리로드
-      if (image.original_image_url && !preloadedImages.has(image.original_image_url)) {
-        imagesToPreload.push(image.original_image_url)
-      }
-      if (image.result_image_url && !preloadedImages.has(image.result_image_url)) {
-        imagesToPreload.push(image.result_image_url)
-      }
-    } else {
-      // 시간버스: 이미지 프리로드
-      if (image.image_url && !preloadedImages.has(image.image_url)) {
-        imagesToPreload.push(image.image_url)
-      }
-    }
-    
-         // 모든 필요한 이미지를 즉시 병렬 프리로드 (우선순위 높음)
-     imagesToPreload.forEach(url => {
-       const img = document.createElement('img') as HTMLImageElement
-       img.crossOrigin = 'anonymous'
-       img.loading = 'eager' // 즉시 로딩
-       // @ts-ignore - fetchPriority는 최신 브라우저 API
-       img.fetchPriority = 'high' // 높은 우선순위
-       img.onload = () => {
-         setPreloadedImages(prev => new Set([...prev, url]))
-       }
-       img.src = url
-     })
+    // 모든 이미지가 이미 프리로딩되므로 추가 작업 불필요
   }
 
   // 모달 닫기
@@ -656,10 +588,10 @@ export default function Home() {
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className={`mb-3 md:mb-4 transition-all duration-500 ease-out ${
+                     className={`mb-3 md:mb-4 transition-all duration-300 ease-out ${
                        loadedImages.has(`${image.type}-${image.id}`) 
-                         ? 'opacity-100 translate-y-0' 
-                         : 'opacity-0 translate-y-4'
+                         ? 'opacity-100 translate-y-0 scale-100' 
+                         : 'opacity-0 translate-y-2 scale-95'
                      }`}
                      id={`card-${image.type}-${image.id}`}
                    >
@@ -671,7 +603,7 @@ export default function Home() {
                        <div className="relative overflow-hidden">
                          {/* 이미지 로딩 중 스켈레톤 오버레이 */}
                          {!loadedImages.has(`${image.type}-${image.id}`) && (
-                           <div className="absolute inset-0 z-10 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-shimmer" />
+                           <div className="absolute inset-0 z-10 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-shimmer transition-opacity duration-300" />
                          )}
                          
                          <Image
@@ -679,15 +611,15 @@ export default function Home() {
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
                            width={400}
                            height={600}
-                           className={`w-full h-auto object-contain transition-all duration-500 ease-out ${
+                           className={`w-full h-auto object-contain transition-all duration-300 ease-out ${
                              loadedImages.has(`${image.type}-${image.id}`)
                                ? 'opacity-100 scale-100'
                                : 'opacity-0 scale-95'
                            }`}
-                           loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
-                           priority={images.indexOf(image) < 6}
+                           loading={images.indexOf(image) < 12 ? "eager" : "lazy"}
+                           priority={images.indexOf(image) < 12}
                            quality={80}
-                           fetchPriority={images.indexOf(image) < 6 ? "high" : "low"}
+                           fetchPriority={images.indexOf(image) < 12 ? "high" : "low"}
                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                            placeholder="blur"
                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
@@ -951,6 +883,7 @@ export default function Home() {
                        alt="원본 낙서"
                        width={400}
                        height={600}
+                       priority={true}
                        className="w-full h-auto object-contain rounded-lg border bg-white"
                        style={{ maxHeight: '50vh' }}
                        quality={85}
@@ -964,6 +897,7 @@ export default function Home() {
                        alt="현실화된 이미지"
                        width={400}
                        height={600}
+                       priority={true}
                        className="w-full h-auto object-contain rounded-lg"
                        style={{ maxHeight: '50vh' }}
                        quality={85}
@@ -979,6 +913,7 @@ export default function Home() {
                      alt="시간버스"
                      width={400}
                      height={600}
+                     priority={true}
                      className="w-full h-auto object-contain rounded-lg max-h-[60vh] mx-auto"
                      quality={85}
                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
