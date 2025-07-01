@@ -510,8 +510,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (2048x2048)
-            const maxSize = 2048
+            // 최대 해상도 제한 (빌드 환경에서는 더 작게)
+            const maxSize = process.env.NODE_ENV === 'production' ? 1024 : 2048
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
@@ -622,8 +622,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
           const ctx = canvas.getContext('2d')
           
           if (ctx) {
-            // 최대 해상도 제한 (2048x2048)
-            const maxSize = 2048
+            // 최대 해상도 제한 (빌드 환경에서는 더 작게)
+            const maxSize = process.env.NODE_ENV === 'production' ? 1024 : 2048
             let { width, height } = img
             
             if (width > maxSize || height > maxSize) {
