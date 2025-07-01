@@ -515,8 +515,8 @@ export default function Home() {
               768: 2,
               640: 1
             }}
-            className="flex w-auto -ml-4 md:-ml-6"
-            columnClassName="pl-4 md:pl-6 bg-clip-padding"
+            className="flex w-auto -ml-2 md:-ml-3"
+            columnClassName="pl-2 md:pl-3 bg-clip-padding"
           >
             {Array.from({ length: 16 }).map((_, i) => {
               // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
@@ -536,8 +536,8 @@ export default function Home() {
               ]
               const randomAspect = aspectRatios[i]
               
-              return (
-                <div key={`initial-shimmer-${i}`} className="mb-6">
+                                return (
+                    <div key={`initial-shimmer-${i}`} className="mb-3 md:mb-4">
                   <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
                     <div className="relative overflow-hidden">
                       <div className={`w-full ${randomAspect} bg-gray-200 animate-shimmer`} />
@@ -565,8 +565,8 @@ export default function Home() {
                  768: 2,      // md에서 2열
                  640: 1       // sm에서 1열
                }}
-               className="flex w-auto -ml-4 md:-ml-6"
-               columnClassName="pl-4 md:pl-6 bg-clip-padding"
+               className="flex w-auto -ml-2 md:-ml-3"
+               columnClassName="pl-2 md:pl-3 bg-clip-padding"
              >
                {images.map((image) => {
                  const displayImage = image.type === 'doodle' ? image.result_image_url : image.image_url
@@ -574,7 +574,7 @@ export default function Home() {
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="mb-6 opacity-0 transform translate-y-4 transition-all duration-200 ease-out"
+                     className="mb-3 md:mb-4 opacity-0 transform translate-y-4 transition-all duration-200 ease-out"
                      id={`card-${image.type}-${image.id}`}
                    >
                      <Card 
@@ -675,8 +675,8 @@ export default function Home() {
                   768: 2,
                   640: 1
                 }}
-                className="flex w-auto -ml-4 md:-ml-6 mt-8"
-                columnClassName="pl-4 md:pl-6 bg-clip-padding"
+                className="flex w-auto -ml-2 md:-ml-3 mt-8"
+                columnClassName="pl-2 md:pl-3 bg-clip-padding"
               >
                 {Array.from({ length: 6 }).map((_, i) => {
                   // 다양한 이미지 비율 시뮬레이션 (실제 이미지와 유사하게)
@@ -690,8 +690,8 @@ export default function Home() {
                   ]
                   const randomAspect = aspectRatios[i % aspectRatios.length]
                   
-                  return (
-                    <div key={`loading-shimmer-${i}`} className="mb-6">
+                                      return (
+                      <div key={`loading-shimmer-${i}`} className="mb-3 md:mb-4">
                       <Card className="overflow-hidden border border-gray-200 rounded-2xl bg-white/80 backdrop-blur-sm">
                         <div className="relative overflow-hidden">
                           <div className={`w-full ${randomAspect} bg-gray-200 animate-shimmer`} />

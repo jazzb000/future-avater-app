@@ -36,7 +36,7 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
   const contextRef = useRef<CanvasRenderingContext2D | null>(null)
 
   // 모바일 감지 함수
-    const isMobile = () => {
+  const isMobile = () => {
     if (typeof window === 'undefined') return false
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
       window.innerWidth <= 768
@@ -80,16 +80,11 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
     }
   }, [])
 
-  // 탭 변경 시 카메라 활성화/비활성화
+  // 탭 변경 시 초기화만 수행 (자동 카메라 시작 제거)
   useEffect(() => {
-    if (activeTab === "camera") {
-      // 탭이 변경되자마자 즉시 카메라 시작
-      setTimeout(() => {
-        startCamera()
-      }, 100) // 100ms 지연으로 DOM 렌더링 완료 후 실행
-    } else if (activeTab === "draw") {
+    if (activeTab === "draw") {
       initializeDrawing()
-    } else {
+    } else if (activeTab !== "camera") {
       stopCameraStream()
     }
   }, [activeTab])
@@ -104,16 +99,8 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
       stopCameraStream()
       setError(null) // 이전 에러 상태 초기화
       
-      // 모바일에서는 자동 카메라 시작을 하지 않고 사용자 액션을 기다림      
-      if (!isMobile()) {
-        // 데스크톱에서만 자동 카메라 시작
-        setTimeout(() => {
-          console.log("카메라 탭 선택됨 - 카메라 시작 시도 (데스크톱)")
-          startCamera()
-        }, 300)
-      } else {
-        console.log("모바일 환경 감지 - 수동 카메라 시작 대기")
-      }
+      // 모바일과 데스크톱 모두 수동 카메라 시작 (사용자 명시적 액션 요구)
+      console.log("카메라 탭 선택됨 - 사용자 액션 대기")
     } else {
       // 다른 탭으로 이동할 때는 카메라 정리
       stopCameraStream()
@@ -253,11 +240,6 @@ export function UploadStep({ updateSelection, currentDoodle }: UploadStepProps) 
       console.log(`카메라 시작 함수 호출됨 (시도 ${retryCount + 1})`)
       setError(null)
       setIsLoadingCamera(true)
-      
-      // 모바일에서는 모달 열기
-      if (isMobile()) {
-        setShowMobileCameraModal(true)
-      }
       
       // 이미 카메라가 활성화되어 있다면 종료
       if (cameraStream) {
