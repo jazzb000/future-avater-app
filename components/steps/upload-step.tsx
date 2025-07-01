@@ -455,8 +455,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
       // 비디오 프레임을 캔버스에 그리기
       context.drawImage(video, 0, 0, canvasWidth, canvasHeight)
 
-      // 캔버스에서 이미지 데이터 추출 (모바일에서 더 나은 품질)
-      const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      // 캔버스에서 이미지 데이터 추출 (PNG 형식으로 통일)
+      const imageData = canvas.toDataURL("image/png", 1.0)
 
       if (imageData && imageData !== "data:,") {
         setPreviewUrl(imageData)
@@ -546,8 +546,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
               return
             }
             
-            // JPEG로 변환 (더 작은 파일 크기를 위해)
-            const optimizedImage = canvas.toDataURL('image/jpeg', 0.7)
+            // PNG로 변환 (고품질)
+            const optimizedImage = canvas.toDataURL('image/png', 1.0)
             
             // 변환된 이미지 검증
             if (!optimizedImage || optimizedImage === "data:,") {
@@ -658,8 +658,8 @@ export function UploadStep({ updateSelection, currentPhoto }: UploadStepProps) {
               return
             }
             
-            // JPEG로 변환 (더 작은 파일 크기를 위해)
-            const optimizedImage = canvas.toDataURL('image/jpeg', 0.7)
+            // PNG로 변환 (고품질)
+            const optimizedImage = canvas.toDataURL('image/png', 1.0)
             
             // 변환된 이미지 검증
             if (!optimizedImage || optimizedImage === "data:,") {

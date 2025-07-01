@@ -60,7 +60,7 @@ export default function Home() {
   const preloadVisibleAreaImages = useCallback(() => {
     const viewportHeight = window.innerHeight
     const scrollTop = window.scrollY
-    const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면 (더 적극적)
+    const preloadZoneEnd = scrollTop + viewportHeight * 3.0 // 현재 화면 + 아래 2화면
 
     // 프리로딩 대상 이미지 선정
     const visibleImages = images
@@ -83,7 +83,7 @@ export default function Home() {
       })
       .slice(0, 20) // 최대 20개
 
-    // 원본 낙서만 프리로딩
+    // 낙서현실화의 경우 원본 낙서 이미지만 프리로딩
     visibleImages.forEach((image, index) => {
       if (image.type === 'doodle' && image.original_image_url) {
         setTimeout(() => {
@@ -359,11 +359,11 @@ export default function Home() {
                 img.loading = 'eager'
               }
 
-              // 현재 화면에 보이는 정도에 따라 즉시 프리로딩 (더 적극적)
+              // 낙서현실화의 경우 원본 낙서 이미지만 프리로딩
               if (image.type === 'doodle' && image.original_image_url) {
                 const delay = intersectionRatio > 0.3 ? 0 : 100 // 화면 30% 이상 보이면 즉시
                 setTimeout(() => {
-                  preloadImageSmart(image.original_image_url!)
+                  preloadImageSmart(image.original_image_url)
                 }, delay)
               }
             }

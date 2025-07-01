@@ -288,21 +288,21 @@ export async function POST(req: Request) {
 
     // 생성된 이미지 정보 저장
     console.log("💾 데이터베이스에 이미지 정보 저장 중...")
-    const { data: savedImageData, error: saveError } = await supabase
+    const { data: imageRecord, error: insertError } = await supabase
       .from("doodle_images")
       .insert({
         user_id: userId,
-        original_image_url: originalStorageUrl || doodle, // Storage 업로드 실패 시 원본 base64 사용
+        original_image_url: originalStorageUrl,
         result_image_url: finalImageUrl,
-        style,
-        is_public: false, // 기본적으로 비공개로 설정
-        status: "completed", // 완료 상태로 설정
+        style: style,
+        is_public: true, // 기본값을 true로 설정
+        created_at: new Date().toISOString(),
       })
       .select()
       .single()
 
-    if (saveError) {
-      console.log("❌ 데이터베이스 저장 실패:", saveError.message)
+    if (insertError) {
+      console.log("❌ 데이터베이스 저장 실패:", insertError.message)
       console.log("⚠️ 이미지는 생성되었지만 DB 저장 실패")
       return NextResponse.json({
         success: true,
@@ -311,11 +311,11 @@ export async function POST(req: Request) {
       })
     }
 
-    console.log("✅ 데이터베이스 저장 완료:", { imageId: savedImageData.id })
+    console.log("✅ 데이터베이스 저장 완료:", { imageId: imageRecord.id })
 
     // 생성된 이미지 URL과 ID 반환
     console.log("🎉 낙서 현실화 완료!", {
-      imageId: savedImageData.id,
+      imageId: imageRecord.id,
       imageUrl: finalImageUrl.substring(0, 100) + "...",
       isBase64: finalImageUrl.startsWith("data:"),
       urlLength: finalImageUrl.length,
@@ -325,7 +325,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       imageUrl: finalImageUrl,
-      imageId: savedImageData.id,
+      imageId: imageRecord.id,
       debug: {
         timestamp: new Date().toISOString(),
         isBase64: finalImageUrl.startsWith("data:"),

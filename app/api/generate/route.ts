@@ -219,6 +219,7 @@ export async function POST(req: Request) {
       gender,
       style,
       layout,
+      is_public: true,
       prompt: prompt,
       status: "processing",
       created_at: new Date().toISOString(),
