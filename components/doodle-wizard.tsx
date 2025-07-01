@@ -29,36 +29,34 @@ export function DoodleWizard() {
   const { user } = useAuth()
   const { remainingTickets } = useTicket()
   const [currentStep, setCurrentStep] = useState(0)
+  const [selectedDoodle, setSelectedDoodle] = useState<string | null>(null)
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
   const [generatedImageId, setGeneratedImageId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [selections, setSelections] = useState<DoodleSelections>({
-    doodle: null,
-    style: null,
-  })
   const router = useRouter()
 
-  const updateSelection = useCallback((key: string, value: string) => {
-    setSelections((prev) => {
-      // 이전 값과 동일하면 상태를 업데이트하지 않음
-      if (prev[key as keyof DoodleSelections] === value) {
-        return prev
-      }
-      return { ...prev, [key]: value }
-    })
-  }, [])
+  const updateSelection = (type: string, value: string) => {
+    if (type === "doodle") {
+      console.log("🎨 낙서 선택됨:", value.substring(0, 100) + "...")
+      setSelectedDoodle(value)
+    } else if (type === "style") {
+      console.log("🎭 스타일 선택됨:", value)
+      setSelectedStyle(value)
+    }
+  }
 
   const steps: WizardStep[] = [
     {
       id: 1,
       title: "낙서 업로드",
-      component: <UploadStep updateSelection={updateSelection} currentDoodle={selections.doodle} />,
+      component: <UploadStep updateSelection={updateSelection} currentDoodle={selectedDoodle} />,
     },
     {
       id: 2,
       title: "스타일 선택",
-      component: <StyleStep updateSelection={updateSelection} currentStyle={selections.style} />,
+      component: <StyleStep updateSelection={updateSelection} currentStyle={selectedStyle} />,
     },
     {
       id: 3,
@@ -66,7 +64,7 @@ export function DoodleWizard() {
       component: (
         <ResultStep
           image={generatedImage}
-          originalDoodle={selections.doodle}
+          originalDoodle={selectedDoodle}
           isLoading={isGenerating}
           imageId={generatedImageId}
           setIsLoading={setIsGenerating}
@@ -109,17 +107,17 @@ export function DoodleWizard() {
 
       try {
         // 이미지 데이터 검증 및 전처리
-        if (!selections.doodle) {
+        if (!selectedDoodle) {
           throw new Error("낙서가 선택되지 않았습니다.")
         }
 
         // Base64 데이터 검증
-        if (!selections.doodle.startsWith("data:image/")) {
+        if (!selectedDoodle.startsWith("data:image/")) {
           throw new Error("잘못된 이미지 형식입니다.")
         }
 
         // 이미지 크기 검증 (10MB 제한)
-        const base64Data = selections.doodle.split(",")[1]
+        const base64Data = selectedDoodle.split(",")[1]
         if (base64Data) {
           const sizeInBytes = Math.ceil((base64Data.length * 3) / 4)
           const sizeInMB = sizeInBytes / (1024 * 1024)
@@ -132,10 +130,10 @@ export function DoodleWizard() {
         console.log("🚀 API 요청 시작 (낙서현실화):", {
           timestamp: new Date().toISOString(),
           userId: user.id.substring(0, 8) + "...",
-          hasDoodle: !!selections.doodle,
-          doodleType: selections.doodle?.startsWith("data:") ? "base64" : "url",
+          hasDoodle: !!selectedDoodle,
+          doodleType: selectedDoodle?.startsWith("data:") ? "base64" : "url",
           doodleSize: base64Data ? `${(base64Data.length * 3 / 4 / 1024 / 1024).toFixed(2)}MB` : "unknown",
-          style: selections.style
+          style: selectedStyle
         })
 
         // 타임아웃 설정 (5분)
@@ -143,8 +141,8 @@ export function DoodleWizard() {
         const timeoutId = setTimeout(() => controller.abort(), 300000) // 5분 타임아웃
 
         const requestBody = {
-          doodle: selections.doodle,
-          style: selections.style,
+          doodle: selectedDoodle,
+          style: selectedStyle,
           userId: user.id,
         }
 
@@ -231,9 +229,9 @@ export function DoodleWizard() {
   const isNextDisabled = () => {
     switch (currentStep) {
       case 0:
-        return !selections.doodle
+        return !selectedDoodle
       case 1:
-        return !selections.style
+        return !selectedStyle
       default:
         return false
     }

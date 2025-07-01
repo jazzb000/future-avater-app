@@ -41,6 +41,41 @@ export function ResultStep({
   
   const [generatedImage, setLocalGeneratedImage] = useState<string | null>(image)
 
+  // 이미지가 변경되면 로컬 상태 동기화
+  useEffect(() => {
+    if (image) {
+      console.log("🖼️ 새 이미지 수신 (낙서현실화):", { 
+        imageUrl: image.substring(0, 100) + "...",
+        isBase64: image.startsWith("data:"),
+        timestamp: new Date().toISOString()
+      })
+      setLocalGeneratedImage(image)
+      setGeneratedImage && setGeneratedImage(image)
+      setImageLoadError(null)
+      setImageLoadAttempts(0)
+    }
+  }, [image, setGeneratedImage])
+
+  // 이미지 상태가 업데이트되면 로컬 상태 동기화
+  useEffect(() => {
+    if (imageStatus) {
+      if (imageStatus.status === "completed" && imageStatus.imageUrl) {
+        console.log("🖼️ 새 이미지 수신 (낙서현실화 - 상태 업데이트):", { 
+          imageUrl: imageStatus.imageUrl.substring(0, 100) + "...",
+          isBase64: imageStatus.imageUrl.startsWith("data:"),
+          timestamp: new Date().toISOString()
+        })
+        setLocalGeneratedImage(imageStatus.imageUrl)
+        setGeneratedImage && setGeneratedImage(imageStatus.imageUrl)
+        setIsLoading && setIsLoading(false)
+        setImageLoadError(null)
+        setImageLoadAttempts(0)
+      } else if (imageStatus.status === "error") {
+        setIsLoading && setIsLoading(false)
+      }
+    }
+  }, [imageStatus, setGeneratedImage, setIsLoading])
+
   // 이미지 공개 상태 가져오기
   useEffect(() => {
     const fetchImagePublicStatus = async () => {
@@ -62,26 +97,6 @@ export function ResultStep({
 
     fetchImagePublicStatus()
   }, [imageId])
-
-  // 이미지 상태가 업데이트되면 로컬 상태 동기화
-  useEffect(() => {
-    if (imageStatus) {
-      if (imageStatus.status === "completed" && imageStatus.imageUrl) {
-        console.log("🖼️ 새 이미지 수신 (낙서현실화):", { 
-          imageUrl: imageStatus.imageUrl.substring(0, 100) + "...",
-          isBase64: imageStatus.imageUrl.startsWith("data:"),
-          timestamp: new Date().toISOString()
-        })
-        setLocalGeneratedImage(imageStatus.imageUrl)
-        setGeneratedImage && setGeneratedImage(imageStatus.imageUrl)
-        setIsLoading && setIsLoading(false)
-        setImageLoadError(null)
-        setImageLoadAttempts(0)
-      } else if (imageStatus.status === "error") {
-        setIsLoading && setIsLoading(false)
-      }
-    }
-  }, [imageStatus, setGeneratedImage, setIsLoading])
 
   // 이미지 로딩 에러 핸들러 (강화된 버전)
   const handleImageError = (error: any) => {
@@ -271,7 +286,7 @@ export function ResultStep({
             </div>
           )}
         </div>
-      ) : imageStatus?.status === 'error' || statusError ? (
+      ) : imageStatus?.status === 'error' ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="text-red-500 text-center">
             <p className="text-lg font-medium mb-2">이미지 생성 중 오류가 발생했습니다</p>
@@ -283,27 +298,27 @@ export function ResultStep({
           <div className="flex justify-center gap-4 flex-col lg:flex-row">
             {/* 원본 낙서 */}
             {originalDoodle && (
-              <div className="relative max-w-md overflow-hidden rounded-2xl shadow-lg border-4 border-purple-300 bg-gray-900">
+              <div className="relative max-w-md overflow-hidden rounded-2xl shadow-lg border-4 border-teal-300 bg-gray-900">
                 <div className="w-full h-[300px] overflow-hidden cursor-pointer group" onClick={() => handleImageClick(originalDoodle)}>
-                <img
+                  <img
                     src={originalDoodle}
-                  alt="원본 낙서"
+                    alt="원본 낙서"
                     className="w-full h-full object-contain transition-transform group-hover:scale-105"
-                />
+                  />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
                     <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </div>
+                </div>
+                <div className="absolute top-2 left-2 bg-teal-500 text-white px-2 py-1 rounded-full text-xs">
+                  원본 낙서
+                </div>
               </div>
-                <div className="absolute top-2 left-2 bg-purple-500 text-white px-2 py-1 rounded-full text-xs">
-                원본 낙서
-              </div>
-            </div>
             )}
 
             {/* 현실화된 이미지 */}
-            <div className="relative max-w-md overflow-hidden rounded-2xl shadow-lg border-4 border-purple-300 bg-gray-900">
+            <div className="relative max-w-md overflow-hidden rounded-2xl shadow-lg border-4 border-teal-300 bg-gray-900">
               <div className="absolute -top-4 -right-4 w-12 h-12 bg-yellow-300 rounded-full opacity-70 z-10"></div>
-              <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-pink-300 rounded-full opacity-70 z-10"></div>
+              <div className="absolute -bottom-4 -left-4 w-12 h-12 bg-green-300 rounded-full opacity-70 z-10"></div>
               <div className="w-full h-[300px] overflow-hidden cursor-pointer group relative z-0" onClick={() => !imageLoadError && handleImageClick(generatedImage)}>
                 {imageLoadError ? (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-500">
@@ -314,19 +329,19 @@ export function ResultStep({
                   </div>
                 ) : (
                   <>
-                <img
-                  src={generatedImage || "/placeholder.svg"} 
-                  alt="현실화된 이미지"
-                  className="w-full h-full object-contain transition-transform group-hover:scale-105" 
-                  onLoad={handleImageLoad}
-                  onError={(e) => handleImageError(e)}
-                  loading="eager"
-                  style={{ 
-                    opacity: imageLoadAttempts > 0 ? 0.7 : 1,
-                    transition: 'opacity 0.3s ease'
-                  }}
-                />
-                                    {imageLoadAttempts > 0 && (
+                    <img
+                      src={generatedImage}
+                      alt="현실화된 이미지"
+                      className="w-full h-full object-contain transition-transform group-hover:scale-105"
+                      onLoad={handleImageLoad}
+                      onError={(e) => handleImageError(e)}
+                      loading="eager"
+                      style={{ 
+                        opacity: imageLoadAttempts > 0 ? 0.7 : 1,
+                        transition: 'opacity 0.3s ease'
+                      }}
+                    />
+                    {imageLoadAttempts > 0 && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                         <div className="text-white text-center">
                           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
@@ -334,16 +349,15 @@ export function ResultStep({
                         </div>
                       </div>
                     )}
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                  <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </div>
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                      <Maximize2 className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    </div>
                   </>
                 )}
               </div>
-              <div className="absolute top-2 left-2 bg-purple-500 text-white px-2 py-1 rounded-full text-xs">
+              <div className="absolute top-2 left-2 bg-teal-500 text-white px-2 py-1 rounded-full text-xs">
                 현실화된 이미지
               </div>
-
             </div>
           </div>
 
