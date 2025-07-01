@@ -29,11 +29,10 @@ const nextConfig = {
     // 캐시 최적화
     minimumCacheTTL: 60 * 60 * 24 * 7, // 7일
   },
-  // 성능 최적화 설정
+  // 성능 최적화 설정 (빌드 오류 방지)
   experimental: {
-    esmExternals: false,
-    optimizeCss: true, // CSS 최적화
-    optimizeServerReact: true, // React 서버 최적화
+    // optimizeCss: true, // 빌드 오류 원인이므로 비활성화
+    optimizeServerReact: true, // React 서버 최적화만 유지
   },
   // 압축 설정
   compress: true,
@@ -45,6 +44,9 @@ const nextConfig = {
       transform: 'lucide-react/dist/esm/icons/{{member}}',
     },
   },
+  // 빌드 최적화
+  productionBrowserSourceMaps: false,
+  poweredByHeader: false,
 }
 
 export default nextConfig

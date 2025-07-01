@@ -104,7 +104,7 @@ export default function Home() {
               })
       .slice(0, 20) // 최대 20개
 
-    // 낙서 원본 프리로딩 (더 빠르게)
+    // 낙서 원본 프리로딩 (더 빠른 로딩)
     visibleDoodleImages.forEach((image, index) => {
       if (image.original_image_url) {
         setTimeout(() => {
@@ -175,6 +175,7 @@ export default function Home() {
       if (reset) {
         startTransition(() => {
           setImages(newImages)
+          setLoadedImages(new Set()) // 새로 로드할 때 로딩 상태 초기화
         })
       } else {
         // 중복 제거 후 추가 - 논블로킹으로 처리
@@ -311,7 +312,7 @@ export default function Home() {
       }
     } finally {
       setLoadingMore(false)
-      console.log('�� 이미지 로딩 완료')
+      console.log('🎉 이미지 로딩 완료')
     }
   }, [loadingMore, hasMore, avatarPage, doodlePage, removeDuplicates, preloadVisibleAreaImages])
 
@@ -413,15 +414,72 @@ export default function Home() {
     return () => observer.disconnect()
   }, [images, preloadImageSmart])
 
+  // 카드 호버 시 모달 이미지 프리로딩
+  const handleCardHover = (image: GalleryImage) => {
+    const imagesToPreload: string[] = []
+    
+    if (image.type === 'doodle') {
+      // 낙서현실화: 원본과 결과 이미지 프리로드
+      if (image.original_image_url && !preloadedImages.has(image.original_image_url)) {
+        imagesToPreload.push(image.original_image_url)
+      }
+      if (image.result_image_url && !preloadedImages.has(image.result_image_url)) {
+        imagesToPreload.push(image.result_image_url)
+      }
+    } else {
+      // 시간버스: 이미지 프리로드
+      if (image.image_url && !preloadedImages.has(image.image_url)) {
+        imagesToPreload.push(image.image_url)
+      }
+    }
+    
+    // 백그라운드에서 조용히 프리로딩
+    imagesToPreload.forEach(url => {
+      const img = document.createElement('img')
+      img.crossOrigin = 'anonymous'
+      img.loading = 'lazy' // 호버는 lazy로
+      img.onload = () => {
+        setPreloadedImages(prev => new Set([...prev, url]))
+      }
+      img.src = url
+    })
+  }
+
   // 이미지 클릭 핸들러
   const handleImageClick = (image: GalleryImage) => {
     setSelectedImage(image)
     setModalOpen(true)
     
-    // 혹시 아직 프리로딩 안된 원본이 있으면 즉시 로딩
-    if (image.type === 'doodle' && image.original_image_url && !preloadedImages.has(image.original_image_url)) {
-      preloadImageSmart(image.original_image_url)
+    // 모달에서 필요한 모든 이미지를 즉시 프리로드
+    const imagesToPreload: string[] = []
+    
+    if (image.type === 'doodle') {
+      // 낙서현실화: 원본과 결과 이미지 모두 프리로드
+      if (image.original_image_url && !preloadedImages.has(image.original_image_url)) {
+        imagesToPreload.push(image.original_image_url)
+      }
+      if (image.result_image_url && !preloadedImages.has(image.result_image_url)) {
+        imagesToPreload.push(image.result_image_url)
+      }
+    } else {
+      // 시간버스: 이미지 프리로드
+      if (image.image_url && !preloadedImages.has(image.image_url)) {
+        imagesToPreload.push(image.image_url)
+      }
     }
+    
+         // 모든 필요한 이미지를 즉시 병렬 프리로드 (우선순위 높음)
+     imagesToPreload.forEach(url => {
+       const img = document.createElement('img') as HTMLImageElement
+       img.crossOrigin = 'anonymous'
+       img.loading = 'eager' // 즉시 로딩
+       // @ts-ignore - fetchPriority는 최신 브라우저 API
+       img.fetchPriority = 'high' // 높은 우선순위
+       img.onload = () => {
+         setPreloadedImages(prev => new Set([...prev, url]))
+       }
+       img.src = url
+     })
   }
 
   // 모달 닫기
@@ -598,24 +656,34 @@ export default function Home() {
                  return (
                    <div 
                      key={`${image.type}-${image.id}`} 
-                     className="mb-3 md:mb-4 opacity-0 transform translate-y-2 transition-all duration-300 ease-out"
+                     className={`mb-3 md:mb-4 transition-all duration-500 ease-out ${
+                       loadedImages.has(`${image.type}-${image.id}`) 
+                         ? 'opacity-100 translate-y-0' 
+                         : 'opacity-0 translate-y-4'
+                     }`}
                      id={`card-${image.type}-${image.id}`}
-                     style={{
-                       animationDelay: `${images.indexOf(image) * 50}ms`,
-                       animationFillMode: 'forwards'
-                     }}
                    >
                      <Card 
                        className="group overflow-hidden border-2 border-gray-200 rounded-2xl hover:border-purple-300 hover:shadow-lg transition-all duration-200 cursor-pointer bg-white/80 backdrop-blur-sm"
                        onClick={() => handleImageClick(image)}
+                       onMouseEnter={() => handleCardHover(image)}
                      >
                        <div className="relative overflow-hidden">
+                         {/* 이미지 로딩 중 스켈레톤 오버레이 */}
+                         {!loadedImages.has(`${image.type}-${image.id}`) && (
+                           <div className="absolute inset-0 z-10 bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 animate-shimmer" />
+                         )}
+                         
                          <Image
                            src={displayImage || "/placeholder.svg"}
                            alt={image.type === 'doodle' ? "낙서현실화" : "시간버스"}
                            width={400}
                            height={600}
-                           className="w-full h-auto object-contain transition-transform duration-200"
+                           className={`w-full h-auto object-contain transition-all duration-500 ease-out ${
+                             loadedImages.has(`${image.type}-${image.id}`)
+                               ? 'opacity-100 scale-100'
+                               : 'opacity-0 scale-95'
+                           }`}
                            loading={images.indexOf(image) < 6 ? "eager" : "lazy"}
                            priority={images.indexOf(image) < 6}
                            quality={80}
@@ -624,25 +692,14 @@ export default function Home() {
                            placeholder="blur"
                            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
                            onLoad={() => {
-                             // 이미지 로드 완료 후 부드러운 애니메이션으로 표시
-                             const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
-                             if (cardElement) {
-                               cardElement.classList.add('fade-in-up');
-                               requestAnimationFrame(() => {
-                                 cardElement.style.opacity = '1';
-                                 cardElement.style.transform = 'translateY(0)';
-                               });
-                             }
+                             // 이미지 로드 완료 후 상태 업데이트로 부드럽게 전환
+                             const imageId = `${image.type}-${image.id}`;
+                             setLoadedImages(prev => new Set(prev).add(imageId));
                            }}
                            onError={() => {
-                             // 이미지 로드 실패시에도 부드럽게 표시
-                             const cardElement = document.getElementById(`card-${image.type}-${image.id}`);
-                             if (cardElement) {
-                               requestAnimationFrame(() => {
-                                 cardElement.style.opacity = '1';
-                                 cardElement.style.transform = 'translateY(0)';
-                               });
-                             }
+                             // 이미지 로드 실패시에도 상태 업데이트
+                             const imageId = `${image.type}-${image.id}`;
+                             setLoadedImages(prev => new Set(prev).add(imageId));
                            }}
                          />
                            
