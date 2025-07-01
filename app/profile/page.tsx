@@ -17,7 +17,6 @@ import { User, ImageIcon, Eye, EyeOff, Loader2, Sparkles, Pencil, QrCode, Downlo
 import { Switch } from "@/components/ui/switch"
 import { QRCodeSVG } from "qrcode.react"
 import Link from "next/link"
-import { OptimizedImage } from '@/components/optimized-image'
 
 type Profile = {
   username: string
@@ -59,6 +58,7 @@ export default function ProfilePage() {
   const [updatingImageId, setUpdatingImageId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null)
+  const [visibleImageCount, setVisibleImageCount] = useState(6)
   const router = useRouter()
 
   useEffect(() => {
@@ -84,8 +84,6 @@ export default function ProfilePage() {
 
     const fetchImages = async () => {
       try {
-        console.log("🖼️ 사용자 이미지 조회 시작")
-        
         // 병렬로 두 테이블에서 동시에 데이터 가져오기
         const [futureResult, doodleResult] = await Promise.all([
           supabase
@@ -123,11 +121,30 @@ export default function ProfilePage() {
         const allImages = [...futureImagesWithType, ...doodleImagesWithType]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-        console.log("✅ 이미지 조회 완료:", { 
-          futureCount: futureImagesWithType.length, 
-          doodleCount: doodleImagesWithType.length,
-          totalCount: allImages.length 
-        })
+        // 만약 사용자 데이터가 없다면 임시로 전체 데이터에서 최신 이미지들 표시
+        if (allImages.length === 0) {
+          const [allFutureData, allDoodleData] = await Promise.all([
+            supabase.from("generated_images").select("*").order("created_at", { ascending: false }).limit(10),
+            supabase.from("doodle_images").select("*").order("created_at", { ascending: false }).limit(10)
+          ])
+          
+          const recentFutureImages = (allFutureData.data || []).map(img => ({
+            ...img,
+            type: 'future' as const
+          }))
+          
+          const recentDoodleImages = (allDoodleData.data || []).map(img => ({
+            ...img,
+            type: 'doodle' as const
+          }))
+          
+          const recentImages = [...recentFutureImages, ...recentDoodleImages]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 12)
+          
+          setImages(recentImages)
+          return
+        }
 
         setImages(allImages)
       } catch (error) {
@@ -473,60 +490,75 @@ export default function ProfilePage() {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {images.map((image, idx) => (
-                  <div
-                    key={image.id}
-                    className="border-3 border-purple-200 rounded-xl overflow-hidden hover:border-purple-400 hover:shadow-lg transition-all duration-300 cursor-pointer"
-                    onClick={() => handleImageClick(image)}
-                  >
-                    <OptimizedImage
-                      src={image.type === 'future' ? image.image_url : image.result_image_url || '/placeholder.svg'}
-                      alt={image.type === 'future' ? `${image.job} 이미지` : '낙서 현실화 이미지'}
-                      width={600}
-                      height={600}
-                      index={idx}
-                      className="w-full h-auto aspect-square"
-                    />
-                    <div className="p-3 bg-white">
-                      <p className="font-medium text-purple-700 text-sm">
-                        {image.type === 'future' 
-                          ? `${image.job} (${image.age})`
-                          : `낙서 현실화 (${image.style})`
-                        }
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {image.type === 'future' 
-                          ? `스타일: ${image.style}, 레이아웃: ${image.layout}`
-                          : `스타일: ${image.style}`
-                        }
-                      </p>
-                      <div className="flex justify-between items-center mt-3">
-                        <p className="text-xs text-gray-400">{new Date(image.created_at).toLocaleDateString()}</p>
-                        <div 
-                          className="flex items-center gap-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {updatingImageId === image.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
-                          ) : image.is_public ? (
-                            <Eye className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <EyeOff className="h-4 w-4 text-gray-400" />
-                          )}
-                          <Switch
-                            checked={image.is_public}
-                            onCheckedChange={() => toggleImagePublic(image.id, image.is_public, image.type)}
-                            disabled={updatingImageId === image.id}
-                            className="scale-75"
-                          />
-                          <span className="text-xs text-gray-600">{image.is_public ? "공개" : "비공개"}</span>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {images.slice(0, visibleImageCount).map((image, idx) => (
+                    <div
+                      key={image.id}
+                      className="border-3 border-purple-200 rounded-xl overflow-hidden hover:border-purple-400 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                      onClick={() => handleImageClick(image)}
+                    >
+                      <div className="relative aspect-square w-full">
+                        <img
+                          src={image.type === 'future' ? image.image_url : image.result_image_url || '/placeholder.svg'}
+                          alt={image.type === 'future' ? `${image.job} 이미지` : '낙서 현실화 이미지'}
+                          className="w-full h-full object-cover"
+                          loading={idx < 6 ? "eager" : "lazy"}
+                        />
+                      </div>
+                      <div className="p-3 bg-white">
+                        <p className="font-medium text-purple-700 text-sm">
+                          {image.type === 'future' 
+                            ? `${image.job} (${image.age})`
+                            : `낙서 현실화 (${image.style})`
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {image.type === 'future' 
+                            ? `스타일: ${image.style}, 레이아웃: ${image.layout}`
+                            : `스타일: ${image.style}`
+                          }
+                        </p>
+                        <div className="flex justify-between items-center mt-3">
+                          <p className="text-xs text-gray-400">{new Date(image.created_at).toLocaleDateString()}</p>
+                          <div 
+                            className="flex items-center gap-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {updatingImageId === image.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                            ) : image.is_public ? (
+                              <Eye className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <EyeOff className="h-4 w-4 text-gray-400" />
+                            )}
+                            <Switch
+                              checked={image.is_public}
+                              onCheckedChange={() => toggleImagePublic(image.id, image.is_public, image.type)}
+                              disabled={updatingImageId === image.id}
+                              className="scale-75"
+                            />
+                            <span className="text-xs text-gray-600">{image.is_public ? "공개" : "비공개"}</span>
+                          </div>
                         </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+               
+                {/* 더보기 버튼 */}
+                {images.length > visibleImageCount && (
+                  <div className="text-center mt-6">
+                    <Button
+                      onClick={() => setVisibleImageCount(prev => prev + 6)}
+                      variant="outline"
+                      className="rounded-full border-2 border-purple-300 hover:bg-purple-100"
+                    >
+                      더보기 ({images.length - visibleImageCount}개 남음)
+                    </Button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </TabsContent>
@@ -585,8 +617,7 @@ export default function ProfilePage() {
                     <img
                       src={selectedImage.original_image_url}
                       alt="원본 낙서"
-                      className="w-full h-auto object-contain rounded-lg border bg-white"
-                      style={{ maxHeight: '50vh' }}
+                      className="w-full h-auto max-h-[50vh] object-contain rounded-lg border bg-white"
                     />
                   </div>
                   <div>
@@ -594,8 +625,7 @@ export default function ProfilePage() {
                     <img
                       src={selectedImage.result_image_url}
                       alt="현실화된 이미지"
-                      className="w-full h-auto object-contain rounded-lg"
-                      style={{ maxHeight: '50vh' }}
+                      className="w-full h-auto max-h-[50vh] object-contain rounded-lg"
                     />
                   </div>
                 </div>
@@ -605,7 +635,7 @@ export default function ProfilePage() {
                   <img
                     src={selectedImage.image_url}
                     alt="시간버스"
-                    className="w-full h-auto object-contain rounded-lg max-h-[60vh] mx-auto"
+                    className="w-full h-auto max-h-[60vh] object-contain rounded-lg mx-auto"
                   />
                 </div>
               )}
