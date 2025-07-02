@@ -374,22 +374,24 @@ export function ResultStep({
           )}
 
           {/* QR코드 섹션 */}
-          <div className="flex justify-center mt-6">
-            <div className="bg-white p-4 rounded-xl border-2 border-teal-200 shadow-sm">
+          <div className="flex justify-center items-center mt-6">
+            <div className="bg-white p-4 rounded-xl border-2 border-teal-200 shadow-sm text-center">
               <div className="text-center mb-3">
                 <QrCode className="h-5 w-5 text-teal-600 mx-auto mb-1" />
                 <p className="text-sm font-medium text-teal-700">QR코드로 이미지 저장</p>
                 <p className="text-xs text-teal-500">스캔하면 바로 저장할 수 있어요!</p>
               </div>
               {generatedImage && (
-                <QRCodeSVG
-                  value={generatedImage}
-                  size={120}
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                  level="M"
-                  includeMargin={true}
-                />
+                <div className="flex justify-center items-center">
+                  <QRCodeSVG
+                    value={generatedImage}
+                    size={120}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="M"
+                    includeMargin={true}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -419,7 +421,7 @@ export function ResultStep({
       {/* 전체화면 모달 - Portal로 body에 직접 렌더링 */}
       {showFullscreen && fullscreenImage && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-70 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black bg-opacity-90 z-[9999] flex items-center justify-center p-2 md:p-4"
           onClick={handleCloseFullscreen}
           style={{ 
             position: 'fixed', 
@@ -433,18 +435,22 @@ export function ResultStep({
             padding: 0
           }}
         >
-          <div className="relative max-w-[60vw] max-h-[100vh] w-auto h-auto">
+          <div className="relative w-full h-full flex items-center justify-center">
             <img
               src={fullscreenImage}
               alt="전체화면 이미지"
-              className="w-full h-full object-contain rounded-lg shadow-2xl"
+              className="max-w-full max-h-full w-auto h-auto object-contain rounded-lg shadow-2xl"
+              style={{
+                maxWidth: '95vw',
+                maxHeight: '90vh'
+              }}
               onClick={(e) => e.stopPropagation()}
             />
             <Button
               onClick={handleCloseFullscreen}
               variant="outline"
               size="sm"
-              className="absolute top-4 right-4 bg-white hover:bg-gray-100"
+              className="absolute top-2 right-2 md:top-4 md:right-4 bg-white hover:bg-gray-100 z-10"
             >
               ✕
             </Button>

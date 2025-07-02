@@ -272,14 +272,43 @@ export default function ProfilePage() {
   }
 
   // 이미지 다운로드
-  const handleDownload = (imageUrl: string, fileName: string) => {
-    const link = document.createElement("a")
-    link.href = imageUrl
-    link.download = fileName
-    link.target = "_blank"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handleDownload = async (imageUrl: string, fileName: string) => {
+    try {
+      // 이미지를 fetch로 가져와서 blob으로 변환
+      const response = await fetch(imageUrl)
+      if (!response.ok) {
+        throw new Error('이미지를 가져올 수 없습니다.')
+      }
+      
+      const blob = await response.blob()
+      
+      // Blob URL 생성
+      const blobUrl = window.URL.createObjectURL(blob)
+      
+      // 다운로드 링크 생성 및 클릭
+      const link = document.createElement("a")
+      link.href = blobUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      
+      // 정리
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(blobUrl)
+      
+      toast({
+        title: "다운로드 완료",
+        description: "이미지가 성공적으로 다운로드되었습니다.",
+      })
+    } catch (error) {
+      console.error('다운로드 오류:', error)
+      toast({
+        title: "다운로드 실패",
+        description: "이미지 다운로드 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    }
   }
 
   // 이미지 공유
@@ -692,14 +721,14 @@ export default function ProfilePage() {
 
                 {/* QR코드 섹션 */}
                 <div className="border-t pt-4">
-                  <div className="flex justify-center">
-                    <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-sm">
+                  <div className="flex justify-center items-center">
+                    <div className="bg-white p-4 rounded-xl border-2 border-purple-200 shadow-sm text-center">
                       <div className="text-center mb-3">
                         <QrCode className="h-5 w-5 text-purple-600 mx-auto mb-1" />
                         <p className="text-sm font-medium text-purple-700">QR코드로 이미지 저장</p>
                         <p className="text-xs text-purple-500">스캔하면 바로 저장할 수 있어요!</p>
                       </div>
-                      <div className="flex justify-center">
+                      <div className="flex justify-center items-center">
                         <QRCodeSVG
                           value={selectedImage.type === 'doodle' ? selectedImage.result_image_url : selectedImage.image_url}
                           size={120}
